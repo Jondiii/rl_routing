@@ -12,6 +12,8 @@ import time
 Definimos primero nombres de carpetas, para que se puedan crear en caso de no existir.
 """
 
+
+
 ALGORTIHM = "temp" # Nombre de la ejecución (no afecta al algoritmo que se vaya a usar)
 models_dir = "temp/" + ALGORTIHM # Directorio donde guardar los modelos generados
 log_dir = "temp"          # Directorios donde guardar los logs
