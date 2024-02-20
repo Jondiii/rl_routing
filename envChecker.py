@@ -1,6 +1,7 @@
 import gymnasium as gym
 from gymnasium.utils.env_checker import check_env
 from stable_baselines3.common.env_checker import check_env as sb3_check_env
+from rl_routing.envs.vrpEnv import VRPEnv
 
 """
 Gymnasium contiene una variedad de entornos listos para usar, pero también permite crear entornos propios.
@@ -15,9 +16,12 @@ Que un entorno pase el checker no quiere decir que esté libre de errores.
 #    f.write(str(gym.envs.registry.keys()))
 
 # Se crea un entorno de prueba.
-env = gym.make('rl_routing:VRPEnv-v0', nVehiculos = 5, nNodos = 20, sameMaxNodeVehicles=True)
+#env = gym.make('rl_routing:VRPEnv-v0', nVehiculos = 5, nNodos = 20, sameMaxNodeVehicles=True)
 
+env = VRPEnv(nVehiculos = 5, nNodos = 20, sameMaxNodeVehicles=True)
 
 # Se comprueba que el entorno sea consistente.
-sb3_check_env(env.unwrapped)
+sb3_check_env(env)
+
+#check_env(env)
 

@@ -30,7 +30,7 @@ class VRPEnv(gym.Env):
                 speed = 70, seed = None,  multiTrip = False, singlePlot = False, 
                 name = None, render_mode = None):
 
-        super().__init__()
+        super(VRPEnv, self).__init__()
 
         if seed is not None:
             np.random.seed(seed)
@@ -139,7 +139,7 @@ class VRPEnv(gym.Env):
         
         # Comprobamos que la acción sea sobre un nodo que forme parte del problema (relevante cuando nNodos != nMaxNodos)
         if action >= self.nNodos * self.nVehiculos:
-            return self._get_obs(), -1, self.isDoneFunction(), dict(info = "Acción rechazada por actuar sobre un nodo no disponible.", accion = action, nNodos = self.nNodos)
+            return self._get_obs(), -1, False, False, dict(info = "Acción rechazada por actuar sobre un nodo no disponible.", accion = action, nNodos = self.nNodos)
 
         # Supongamos que nNodos = 6, nVehiculos = 2 y action = 6 * 2 + 2
         # Calculamos el vehículo que realiza la acción
@@ -150,7 +150,7 @@ class VRPEnv(gym.Env):
 
         # Comprobar si la acción es válida
         if not self.checkAction(node, vehiculo):
-            return self._get_obs(), -1, self.isDoneFunction(), dict()
+            return self._get_obs(), -1, False, False, dict()
 
         # Eliminar el lugar que se acaba de visitar de las posibles acciones
         self.visited[node] = 1
@@ -197,14 +197,14 @@ class VRPEnv(gym.Env):
         # objetivo final del episodio, como haber alcanzado cierto límite de tiempo.
         truncated = False
         dones = terminated or truncated
-
-        #return self._get_obs(), reward, terminated, truncated, self._get_info()
-        return self._get_obs(), reward, dones, self._get_info()
+        
+        return self._get_obs(), reward, terminated, truncated, self._get_info()
+        #return self._get_obs(), reward, dones, self._get_info()
 
 
     # Método para resetear el entorno. Se hace al principio del entrenamiento y tras cada episodio.
-    def reset(self, seed = None):
-        super().reset(seed=seed)
+    def reset(self, seed = None, options = None):
+        super().reset(seed=seed, options=options)
 
         self.visited = np.zeros(shape=(self.nNodos), dtype=np.int64) # Marcamos todo como no visitado.
 
@@ -247,8 +247,8 @@ class VRPEnv(gym.Env):
         for _ in range(self.nVehiculos):
             self.v_ordenVisitas.append([0])
                
-        #return self._get_obs(), self._get_info() # Con esto si quitamos el parámetro apply_api_compatibility 
-        return self._get_obs()
+        return self._get_obs(), self._get_info() # Con esto si quitamos el parámetro apply_api_compatibility 
+        #return self._get_obs()
 
     """
     Método que comprueba la validez de una acción. La acción será incorrecta si:
