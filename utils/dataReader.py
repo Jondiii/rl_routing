@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import errno
 import json
 import sys
 import os
@@ -7,6 +8,15 @@ import io
 
 
 class DataReader:
+    nameIndex = 'index'
+    nameXcoord = 'coordenadas_X'
+    nameYcoord = 'coordenadas_Y'
+    nameDemands = 'demandas'
+    nameMaxDemands = 'maxDemand'
+    nameTWStart = 'minTW'
+    nameTWEnd = 'maxTW'
+
+
     def __init__(self,
                  dataPath,
                  nodeFile="nodes",
@@ -127,7 +137,39 @@ class DataReader:
         pd.DataFrame(self.nodeInfo).set_index('index').to_csv(os.path.join(path, nodeFile + '.csv'))
         pd.DataFrame(self.vehicleInfo).set_index('index').to_csv(os.path.join(path, vehicleFile + '.csv'))
 
+    
+    def make_node_csv_readable(self, nodeFile, coord_x, coord_y, demand, minTw, maxTw, maxDemand = None):
+        if not os.path.exists(nodeFile):
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), nodeFile)
         
+        nodeData = pd.read_csv(nodeFile)
+        nodeData.drop('CUST NO.', axis = 1, inplace=True)
+
+        nodeData.index.names = [self.nameIndex ]
+
+        nodeData.rename(columns = {coord_x : self.nameXcoord,
+                                   coord_y : self.nameYcoord,
+                                   demand : self.nameDemands,
+                                   minTw : self.nameTWStart,
+                                   maxTw : self.nameTWEnd},
+                        inplace = True)
+
+        if maxDemand is None:
+            nodeData[self.nameMaxDemands] = nodeData[self.nameDemands].max()
+        
+        else:
+            nodeData.rename(columns = {maxDemand : self.nameMaxDemands})
+
+        nodeData.to_csv(nodeFile, columns=[self.nameXcoord,self.nameYcoord,self.nameDemands,self.nameTWStart,self.nameTWEnd,self.nameMaxDemands])
+
+
 if __name__ == "__main__":
-    reader = DataReader('data', 'C101', 'lala', '.json')
-    reader.save_to_csv('data/solomon_benchmark', 'nodes', 'vehicles')
+    reader = DataReader('data')
+
+    base_dir = "data/solomon_dataset"
+    
+    for root, dirs, files in os.walk(base_dir):
+        for file in files:
+            reader.make_node_csv_readable(os.path.join(root, file),'XCOORD.','YCOORD.','DEMAND','READY TIME','DUE DATE')
+
+    
