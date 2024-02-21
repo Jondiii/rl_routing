@@ -26,10 +26,10 @@ class VRPEnv(gym.Env):
 
     def __init__(self, nVehiculos, nNodos,
                 maxNumVehiculos = 50, maxNumNodos = 100,
-                maxCapacity = 100, maxNodeCapacity = 6,
+                maxCapacity = 100, maxNodeCapacity = 6, maxSteps = None,
                 sameMaxNodeVehicles = False, twMin = None, twMax = None,
                 speed = 70, seed = None,  multiTrip = False, singlePlot = False, 
-                name = None, render_mode = None):
+                name = None, dataPath = None, render_mode = None):
 
         super(VRPEnv, self).__init__()
 
@@ -38,11 +38,14 @@ class VRPEnv(gym.Env):
             self.seed = seed
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
+
         self.render_mode = render_mode
 
         self.multiTrip = multiTrip
         self.singlePlot = singlePlot
-        self.currSteps = 0
+        self.maxSteps = maxSteps
+        self.currTotalSteps = 0
+        self.currEpisodeSteps = 0
         self.name = name
 
         # Por defecto, se usará la función por defecto de isDone.
@@ -68,12 +71,14 @@ class VRPEnv(gym.Env):
 
         # Características de los vehículos
         self.v_maxCapacity = maxCapacity
-        self.v_speed = speed
+        self.v_speeds = speed if isinstance(speed, np.ndarray) else (np.zeros(shape = (self.nVehiculos)) + speed)
 
-        # Generamos datos para usar en el problema si estos no existen
-        self.dataGen = DataGenerator(self.maxNumNodos, self.maxNumVehiculos, seed = self.seed)
-        self.generateRandomData()
-        
+        if dataPath is None:
+            # Generamos datos para usar en el problema si estos no existen
+            self.generateRandomData()
+        else:
+            self.readEnvFromFile(dataPath)
+            
         # Cálculo de matrices de distancia
         self.createMatrixes()
 
@@ -85,20 +90,7 @@ class VRPEnv(gym.Env):
     def readEnvFromFile(self, nVehiculos, nNodos, maxVehicles, maxNodos, dataPath):
         self.dataReader  = DataReader(dataPath)
       
-        self.n_coordenadas = np.array([self.dataReader.nodeInfo["coordenadas_X"], self.dataReader.nodeInfo["coordenadas_Y"]]).T
-        self.n_originalDemands = self.dataReader.nodeInfo["demandas"].to_numpy()
-        self.n_demands = copy.deepcopy(self.n_originalDemands) ## DEJAR
-        self.n_maxNodeCapacity = self.dataReader.nodeInfo["maxDemand"][0] # TODO
-
-        # Características de los vehículos
-        self.v_maxCapacity = self.dataReader.vehicleInfo["maxCapacity"][0] # TODO
-        self.v_speed = self.dataReader.vehicleInfo["speed"][0]      # TODO
-        self.v_loads = self.dataReader.vehicleInfo["maxCapacity"].to_numpy()
-        self.v_speeds = self.dataReader.vehicleInfo["speed"].to_numpy()
-
-        # Ventanas de tiempo
-        self.minTW = self.dataReader.nodeInfo["minTW"].to_numpy()
-        self.maxTW = self.dataReader.nodeInfo["maxTW"].to_numpy()
+        self.loadData()
 
         self.nNodos = nNodos + 1
         self.nVehiculos = nVehiculos
@@ -136,11 +128,12 @@ class VRPEnv(gym.Env):
 
     # Método encargado de ejecutar las acciones seleccionadas por el agente.
     def step(self, action):
-        self.currSteps += 1 
+        self.currTotalSteps += 1 
+        self.currEpisodeSteps += 1
         
         # Comprobamos que la acción sea sobre un nodo que forme parte del problema (relevante cuando nNodos != nMaxNodos)
         if action >= self.nNodos * self.nVehiculos:
-            return self._get_obs(), -1, False, False, dict(info = "Acción rechazada por actuar sobre un nodo no disponible.", accion = action, nNodos = self.nNodos)
+            return self._get_obs(), -1, False, self.isTruncated(), dict(info = "Acción rechazada por actuar sobre un nodo no disponible.", accion = action, nNodos = self.nNodos)
 
         # Supongamos que nNodos = 6, nVehiculos = 2 y action = 6 * 2 + 2
         # Calculamos el vehículo que realiza la acción
@@ -151,7 +144,7 @@ class VRPEnv(gym.Env):
 
         # Comprobar si la acción es válida
         if not self.checkAction(node, vehiculo):
-            return self._get_obs(), -1, False, False, dict()
+            return self._get_obs(), -1, False, self.isTruncated(), dict()
 
         # Eliminar el lugar que se acaba de visitar de las posibles acciones
         self.visited[node] = 1
@@ -194,12 +187,8 @@ class VRPEnv(gym.Env):
         # Comprobar si se ha llegado al final del episodio
         terminated = self.isDoneFunction()
 
-        # Truncated se usa para indicar si el episodio ha finalizado porque se ha cumplido una condición fuera del
-        # objetivo final del episodio, como haber alcanzado cierto límite de tiempo.
-        truncated = False
-        dones = terminated or truncated
         
-        return self._get_obs(), reward, terminated, truncated, self._get_info()
+        return self._get_obs(), reward, terminated, self.isTruncated(), self._get_info()
         #return self._get_obs(), reward, dones, self._get_info()
 
 
@@ -247,6 +236,8 @@ class VRPEnv(gym.Env):
         # Añadimos nuevas listas que tienen ya un 0 (depot) al comienzo, tantas como vehículos haya.
         for _ in range(self.nVehiculos):
             self.v_ordenVisitas.append([0])
+
+        self.currEpisodeSteps = 0
                
         return self._get_obs(), self._get_info() # Con esto si quitamos el parámetro apply_api_compatibility 
         #return self._get_obs()
@@ -296,6 +287,14 @@ class VRPEnv(gym.Env):
     def _get_info(self):
         info = {'info' : 'None'}
         return info
+
+    # Truncated se usa para indicar si el episodio ha finalizado porque se ha cumplido una condición fuera del
+    # objetivo final del episodio, como haber alcanzado cierto límite de tiempo.
+    def isTruncated(self):
+        if self.maxSteps is None:
+            return False
+
+        return True if self.maxSteps <= self.currEpisodeSteps else False
 
 
     # Método que comprueba que haya finalizado el episodio
@@ -350,8 +349,8 @@ class VRPEnv(gym.Env):
     # el porcentaje mínimo de nodos a visitar irá en aumento.
     def increasingIsDone(self):
         # Se calcula el porcentaje mínimo a visitar
-        if self.currSteps / self.totalSteps >= self.increaseStart:
-            if self.currSteps % self.everyNTimesteps == 0: 
+        if self.currTotalSteps / self.totalSteps >= self.increaseStart:
+            if self.currTotalSteps % self.everyNTimesteps == 0: 
                 self.minimumVisited += self.increaseRate
                 
                 # Si se pasa de 100%, poner a 100%
@@ -410,13 +409,13 @@ class VRPEnv(gym.Env):
         # Mientras no llevemos más de los pasos indicados en decayingStart, el isDone funciona de manera normal. 
         # Después de pasarlo, aplicaremos la reducción de porcentaje de nodos a visitar.
         if self.minimumVisited == 1:
-            if self.currSteps / self.totalSteps >= self.decayingStart: # Si se pasa de más de decayingStart%, se visitan menos
+            if self.currTotalSteps / self.totalSteps >= self.decayingStart: # Si se pasa de más de decayingStart%, se visitan menos
                 self.minimumVisited -= self.decayingRate
 
             return self.isDone()
         
         # Vamos disminuyendo el mínimo a visitar cada everyNTimesteps, en una proporción de decayingRate
-        if self.currSteps % self.everyNTimesteps == 0:
+        if self.currTotalSteps % self.everyNTimesteps == 0:
             self.minimumVisited -= self.decayingRate
 
         # Si tenemos multiTrip, entonces no es necesario que todos los vehículos hayan regresado al depot.
@@ -448,6 +447,15 @@ class VRPEnv(gym.Env):
 
      
         return False
+    
+    def createMatrix(self, value, shape):
+        if isinstance(value, np.ndarray):
+            return value
+
+        if isinstance(value, list):
+            return np.array(value)
+        
+        return np.zeros(shape) + value
 
         
     # Método que calcula la recompensa a dar al agente.
@@ -506,31 +514,32 @@ class VRPEnv(gym.Env):
 
     # Genera casos de forma semi-aleatoria haciendo uso de la clase dataGenerator
     def generateRandomData(self):
+        self.dataGen = DataGenerator(self.maxNumNodos, self.maxNumVehiculos, seed = self.seed)
+
         self.dataGen.addNodeInfo(self.n_maxNodeCapacity, self.twMin, self.twMin)
         self.dataGen.generateNodeInfo()
-        self.dataGen.addVehicleInfo(self.v_maxCapacity, self.v_speed)
+        self.dataGen.addVehicleInfo(self.v_maxCapacity, self.v_speeds)
         self.dataGen.generateVehicleInfo()
         self.dataGen.saveData()
 
-        self.loadData(self.dataGen)
+        self.loadData()
 
     # Cargamos los datos generados
-    def loadData(self, reader):
+    def loadData(self):
         # Características de los nodos
-        self.n_coordenadas = np.array([reader.nodeInfo["coordenadas_X"], reader.nodeInfo["coordenadas_Y"]]).T
-        self.n_originalDemands = reader.nodeInfo["demandas"].to_numpy()
+        self.n_coordenadas = np.array([self.dataGen.nodeInfo["coordenadas_X"], self.dataGen.nodeInfo["coordenadas_Y"]]).T
+        self.n_originalDemands = self.dataGen.nodeInfo["demandas"].to_numpy()
         self.n_demands = copy.deepcopy(self.n_originalDemands) ## DEJAR
-        self.n_maxNodeCapacity = reader.nodeInfo["maxDemand"][0] # TODO
+        self.n_maxNodeCapacity = self.dataGen.nodeInfo["maxDemand"][0] # El atributo maxDemand debería ser igual en todos los nodos del fichero
 
         # Características de los vehículos
-        self.v_maxCapacity = reader.vehicleInfo["maxCapacity"][0] # TODO
-        self.v_speed = reader.vehicleInfo["speed"][0]      # TODO
-        self.v_loads = reader.vehicleInfo["maxCapacity"].to_numpy()
-        self.v_speeds = reader.vehicleInfo["speed"].to_numpy()
+        self.v_loads = self.dataGen.vehicleInfo["maxCapacity"].to_numpy()
+        self.v_maxCapacity = self.v_loads.max()
+        self.v_speeds = self.dataGen.vehicleInfo["speed"].to_numpy()
 
         # Ventanas de tiempo
-        self.minTW = reader.nodeInfo["minTW"].to_numpy()
-        self.maxTW = reader.nodeInfo["maxTW"].to_numpy()
+        self.minTW = self.dataGen.nodeInfo["minTW"].to_numpy()
+        self.maxTW = self.dataGen.nodeInfo["maxTW"].to_numpy()
 
     def renderRoutes(self, dir = 'default'):      
         if self.grafoCompletado == None:
