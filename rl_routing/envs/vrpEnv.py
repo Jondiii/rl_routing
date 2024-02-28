@@ -120,14 +120,14 @@ class VRPEnv(gym.Env):
         
         # Comprobamos que la acción sea sobre un nodo que forme parte del problema (relevante cuando nNodos != nMaxNodos)
         if action >= self.nNodos * self.nVehiculos:
-            return self._get_obs(), -1, False, self.isTruncated(), dict(info = "Acción rechazada por actuar sobre un nodo no disponible.", accion = action, nNodos = self.nNodos)
+            return self._get_obs(), 0, False, self.isTruncated(), dict(info = "Acción rechazada por actuar sobre un nodo no disponible.", accion = action, nNodos = self.nNodos)
 
         vehiculo = action // self.nNodos
 
         node = action % self.nNodos
 
         if not self.checkAction(node, vehiculo):
-            return self._get_obs(), -1, False, self.isTruncated(), dict()
+            return self._get_obs(), 0, False, self.isTruncated(), dict()
 
         # Eliminar el lugar que se acaba de visitar de las posibles acciones
         self.visited[node] = 1
@@ -422,9 +422,9 @@ class VRPEnv(gym.Env):
         
     # Método que calcula la recompensa a dar al agente.
     def getReward(self, distancia, action, vehicle):
-        # Si el vehículo no se mueve, penalización.
+        # Si el vehículo no se mueve, no hay recompensa.
         if distancia == 0:
-            return -1
+            return 0
 
         # La recompensa será inversamente proporcional a la distancia recorrida, a mayor distancia, menor recompensa
         reward = round(1/abs(distancia), 2)
