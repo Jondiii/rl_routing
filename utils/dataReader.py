@@ -109,12 +109,13 @@ class DataReader:
     def loadNodeData(self):
         nodeData = dict()
 
-        nodeData['n_coordenadas'] = np.array([self.nodeInfo["coordenadas_X"], self.nodeInfo["coordenadas_Y"]]).T
-        nodeData['n_originalDemands'] = self.nodeInfo["demandas"].to_numpy()
-        nodeData['n_maxNodeCapacity ']= self.nodeInfo["maxDemand"][0]
+        nodeData['coordenadas_X'] = self.nodeInfo["coordenadas_X"]
+        nodeData['coordenadas_Y'] = self.nodeInfo["coordenadas_Y"]
+        nodeData['demandas'] = self.nodeInfo["demandas"]
+        nodeData['maxDemand']= self.nodeInfo["maxDemand"]
 
-        nodeData['minTW'] = self.nodeInfo["minTW"].to_numpy()
-        nodeData['maxTW'] = self.nodeInfo["maxTW"].to_numpy()
+        nodeData['minTW'] = self.nodeInfo["minTW"]
+        nodeData['maxTW'] = self.nodeInfo["maxTW"]
 
         return nodeData
 
@@ -122,10 +123,10 @@ class DataReader:
     def loadVehicleData(self):
         vehicleData = dict()
 
-        vehicleData['v_maxCapacity'] = self.vehicleInfo["maxCapacity"][0]
-        vehicleData['v_speed'] = self.vehicleInfo["speed"][0]
-        vehicleData['v_loads'] = self.vehicleInfo["maxCapacity"].to_numpy()
-        vehicleData['v_speeds'] = self.vehicleInfo["speed"].to_numpy()
+        vehicleData['maxCapacity'] = self.vehicleInfo["maxCapacity"]
+        vehicleData['speed'] = self.vehicleInfo["speed"]
+        vehicleData['maxCapacity'] = self.vehicleInfo["maxCapacity"]
+        vehicleData['speed'] = self.vehicleInfo["speed"]
 
         return vehicleData
     
