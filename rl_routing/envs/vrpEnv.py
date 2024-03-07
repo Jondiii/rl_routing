@@ -11,7 +11,7 @@ from datetime import date
 
 
 class VRPEnv(gym.Env):
-    metadata = {'render_modes': ['human']}
+    metadata = {'render_modes': ['human'], 'render_fps' : 5}
 
     decayingStart = None
     grafoCompletado = None
@@ -520,7 +520,7 @@ class VRPEnv(gym.Env):
 
 
     # Crea y guarda una imagen y un report el último conjunto de grafos completado 
-    def render(self, mode = None):
+    def render(self):
         
         if self.grafoCompletado == None:
             return
