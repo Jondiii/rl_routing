@@ -22,8 +22,8 @@ INICIALIZACIÓN DE ENTORNO Y AGENTE
 nVehiculos = 7
 nNodos = 20
 
-env = gym.make('rl_routing:VRPEnv-v0',  nVehiculos = nVehiculos, nNodos = nNodos, maxNodeCapacity = 4, sameMaxNodeVehicles=True, render_mode='human')
-
+env = gym.make('rl_routing:VRPEnv-v0',  nVehiculos = 5, nNodos = 15, maxNumVehiculos = 7, maxNumNodos = 20, maxNodeCapacity = 4, sameMaxNodeVehicles=False, render_mode='human', dataPath = 'data/')
+#env.readEnvFromFile(nVehiculos = 5, nNodos = 15, maxVehicles = 7, maxNodos = 20, dataPath = 'data/')
 env.reset()
 
 model = PPO.load(model_path, env)
