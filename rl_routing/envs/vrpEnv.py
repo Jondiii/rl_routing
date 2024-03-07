@@ -73,7 +73,7 @@ class VRPEnv(gym.Env):
             # Generamos datos para usar en el problema si estos no existen
             self.generateRandomData()
         else:
-            self.readEnvFromFile(dataPath)
+            self.readEnvFromFile(self.nVehiculos, self.nNodos, self.maxNumVehiculos, self.maxNumNodos, dataPath)
             
         # Cálculo de matrices de distancia
         self.createMatrixes()
@@ -85,14 +85,12 @@ class VRPEnv(gym.Env):
     # Método que creará un entorno a partir de lo que se haya almacenado en los ficheros.
     def readEnvFromFile(self, nVehiculos, nNodos, maxVehicles, maxNodos, dataPath):
         self.dataReader  = DataReader(dataPath)
-      
+        self.dataGen = DataGenerator(self.maxNumNodos, self.maxNumVehiculos)
+
+        self.dataGen.nodeInfo = self.dataReader.loadNodeData()
+        self.dataGen.vehicleInfo = self.dataReader.loadVehicleData()
+
         self.loadData()
-
-        self.nNodos = nNodos + 1
-        self.nVehiculos = nVehiculos
-
-        self.maxNumNodos = maxNodos + 1
-        self.maxNumVehiculos = maxVehicles
 
         # Cálculo de matrices de distancia
         self.createMatrixes()
@@ -191,6 +189,7 @@ class VRPEnv(gym.Env):
 
         # Calculamos las distancias que hay desde cada vehículo a cada nodo.
         self.n_distances = np.zeros(shape = (self.maxNumVehiculos, self.maxNumNodos))
+
         for i in range(0, self.maxNumVehiculos):
             self.n_distances[i] = self.distanceMatrix[0]
 
