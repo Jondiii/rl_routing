@@ -1,19 +1,15 @@
 from stable_baselines3 import PPO, A2C
 from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.vec_env import VecExtractDictObs, VecMonitor, DummyVecEnv, VecEnvWrapper
-
-from rl_routing.envs.vrpEnv import VRPEnv
 
 import gymnasium as gym
-import os
 import time
 
 """
 Definimos primero dónde buscar el modelo ya entrenado.
 """
 
-model_name = "temp/2048.zip"
-models_dir = "temp" # Sin el -1 de las acciones, no funciona ni tan mal, pero tarda la vida. 
+model_name = "baseAlg/61440.zip"
+models_dir = "models" # Sin el -1 de las acciones, no funciona ni tan mal, pero tarda la vida. 
 model_path = f"{models_dir}/{model_name}"
 
 """
@@ -22,7 +18,7 @@ INICIALIZACIÓN DE ENTORNO Y AGENTE
 nVehiculos = 7
 nNodos = 20
 
-env = gym.make('rl_routing:VRPEnv-v0',  nVehiculos = 5, nNodos = 15, maxNumVehiculos = 7, maxNumNodos = 20, maxNodeCapacity = 4, sameMaxNodeVehicles=False, render_mode='human', dataPath = 'data/')
+env = gym.make('rl_routing:VRPEnv-v0',  nVehiculos = 7, nNodos = 20, maxNumVehiculos = 7, maxNumNodos = 20, maxNodeCapacity = 4, sameMaxNodeVehicles=False, render_mode='human', dataPath = 'data/')
 #env.readEnvFromFile(nVehiculos = 5, nNodos = 15, maxVehicles = 7, maxNodos = 20, dataPath = 'data/')
 env.reset()
 
@@ -43,9 +39,7 @@ for ep in range(episodes):
     
     while not done:
         action, _ = model.predict(obs)
-
+        vec_env.render()
         obs, reward, done, info = vec_env.step(action)
-
-    vec_env.render('human') # Guarda un report y los grafos en la ruta especificada.
 
     vec_env.close()

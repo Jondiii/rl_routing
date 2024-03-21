@@ -3,6 +3,7 @@ from .graph import Graph
 from datetime import date
 import matplotlib
 import matplotlib.pyplot as plt
+import time
 import os
 
 """
@@ -18,7 +19,7 @@ class Routes:
     """
     def __init__(self, nVehiculos, nNodos, maxNumVehiculos, maxNumNodos, demands, coordenadas, speeds, drawDemand = True):
         self.grafos = [] # Lista que contendrá las rutas individuales del problema, en forma de grafos.
-        matplotlib.use('Agg') # Descomentar si se está trabajando en el server. Como esta clase se usa para visualizar rutas, si no se pone esto al hacer pruebas en el servidor, este peta.
+        #matplotlib.use('Agg') # Descomentar si se está trabajando en el server. Como esta clase se usa para visualizar rutas, si no se pone esto al hacer pruebas en el servidor, este peta.
         
         self.nNodos = nNodos
         self.nVehiculos = nVehiculos
@@ -139,12 +140,20 @@ class Routes:
         num_columns = min(len(self.grafos), 3)
         num_rows = np.ceil(len(self.grafos) / num_columns).astype(int)
 
-        plt.clf()
+        plt.ion()
+
+        fig = plt.figure()
 
         for n, idGrafo in enumerate(range(len(self.grafos))):
             ax = plt.subplot(num_rows, num_columns, n + 1)
 
             self.grafos[idGrafo].dibujarGrafo(ax = ax)
+        
+        plt.pause(1)
+        
+        fig.canvas.draw()
+        fig.canvas.flush_events()
 
-        plt.show()
+        time.sleep(1)
+
 

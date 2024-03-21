@@ -5,6 +5,8 @@ import numpy as np
 from utils.routes import Routes
 from utils.dataGenerator import DataGenerator
 from utils.dataReader import DataReader
+import networkx as nx
+import matplotlib.pyplot as plt
 import copy
 import os
 from datetime import date
@@ -23,7 +25,8 @@ class VRPEnv(gym.Env):
     prev_action = 0
     prev_vehicle = 0
 
-
+    fig = None
+    
     def __init__(self, nVehiculos, nNodos,
                 maxNumVehiculos = 50, maxNumNodos = 100,
                 maxCapacity = 100, maxNodeCapacity = 6, maxSteps = None,
@@ -73,7 +76,7 @@ class VRPEnv(gym.Env):
             # Generamos datos para usar en el problema si estos no existen
             self.generateRandomData()
         else:
-            self.readEnvFromFile(self.nVehiculos, self.nNodos, self.maxNumVehiculos, self.maxNumNodos, dataPath)
+            self.readEnvFromFile(dataPath)
             
         # Cálculo de matrices de distancia
         self.createMatrixes()
@@ -83,7 +86,7 @@ class VRPEnv(gym.Env):
 
 
     # Método que creará un entorno a partir de lo que se haya almacenado en los ficheros.
-    def readEnvFromFile(self, nVehiculos, nNodos, maxVehicles, maxNodos, dataPath):
+    def readEnvFromFile(self, dataPath):
         self.dataReader  = DataReader(dataPath)
         self.dataGen = DataGenerator(self.maxNumNodos, self.maxNumVehiculos)
 
@@ -516,11 +519,25 @@ class VRPEnv(gym.Env):
         self.crearReport(self.ordenVisitasCompletas, self.tiempoFinal, directorio = dir)
 
 
-
-
     # Crea y guarda una imagen y un report el último conjunto de grafos completado 
     def render(self):
-        
+        if self.fig is None:
+            self.fig = plt.figure()
+            self.num_columns = min(self.nVehiculos, 4)
+            self.num_rows = np.ceil(self.nVehiculos / self.num_columns).astype(int)
+
+        plt.clf()
+
+        for n, idGrafo in enumerate(range(len(self.rutas.grafos))):
+            ax = plt.subplot(self.num_rows, self.num_columns, n + 1)
+
+            self.rutas.grafos[idGrafo].dibujarGrafo(ax = ax)
+
+        plt.pause(0.2) # PROBAR con esto: https://graphviz.readthedocs.io/en/stable/manual.html
+
+
+    # Guarda el conjunto actual de grafos, independientemente de si están completos o no
+    def generateReport(self):
         if self.grafoCompletado == None:
             return
         
@@ -535,20 +552,6 @@ class VRPEnv(gym.Env):
 
         self.crearReport(self.ordenVisitasCompletas, self.tiempoFinal, directorio = dir)
 
-
-    # Guarda el conjunto actual de grafos, independientemente de si están completos o no
-    def render2(self):
-        if self.singlePlot:
-            self.rutas.guardarGrafosSinglePlot()
-        else:
-            self.rutas.guardarGrafos()
-        
-        self.crearReport(self.v_ordenVisitas, self.currTime)
-
-
-    # WIP - TODO (o quizá no)
-    def graphicalRender(self):
-        self.rutas.getRutasVisual()
 
     # Método que crea un pequeño report sobre las rutas obtenidas.
     # Simplemente crea un fichero con las rutas creadas mostrando el orden de las visitas, la duración de cada ruta y la duración

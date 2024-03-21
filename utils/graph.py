@@ -68,8 +68,9 @@ class Graph:
     # Método encargado de dibujar una ruta concreta.
     def dibujarGrafo(self, ax, edgeColor = "red"):
         # Método que comprueba si un nodo ha sido visitado o no.
+
         def isNodeVisited(node):
-            return self.graph.nodes[node]["visited"] == True
+            return (self.graph.nodes[node]["visited"] == True) or (self.graph.nodes[node]["depot"] == True)
         
         posicion = nx.get_node_attributes(self.graph, "coordinates")
 
