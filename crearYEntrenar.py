@@ -12,14 +12,15 @@ import time
 Definimos primero nombres de carpetas, para que se puedan crear en caso de no existir.
 """
 
+### MIRAR https://stable-baselines3.readthedocs.io/en/master/guide/callbacks.html#stable_baselines3.common.callbacks.StopTrainingOnNoModelImprovement
+### PARA HACER EARLY STOPPING DEL ENTRENAMIENTO
 
+ALGORTIHM = "baseAlg" # Nombre de la ejecución (no afecta al algoritmo que se vaya a usar)
+models_dir = "models/" + ALGORTIHM # Directorio donde guardar los modelos generados
+log_dir = "logs"          # Directorios donde guardar los logs
 
-ALGORTIHM = "temp" # Nombre de la ejecución (no afecta al algoritmo que se vaya a usar)
-models_dir = "temp/" + ALGORTIHM # Directorio donde guardar los modelos generados
-log_dir = "temp"          # Directorios donde guardar los logs
-
-ITERATIONS = 1          # Número de iteraciones
-TIMESTEPS = 2048*1       # Pasos por cada iteración (poner múltiplos de 2048)
+ITERATIONS = 10          # Número de iteraciones
+TIMESTEPS = 2048*5       # Pasos por cada iteración (poner múltiplos de 2048)
 
 nVehiculos = 7
 nNodos = 20

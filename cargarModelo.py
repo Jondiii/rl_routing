@@ -8,7 +8,7 @@ import time
 Definimos primero dónde buscar el modelo ya entrenado.
 """
 
-model_name = "baseAlg/61440.zip"
+model_name = "baseAlg/102400.zip"
 models_dir = "models" # Sin el -1 de las acciones, no funciona ni tan mal, pero tarda la vida. 
 model_path = f"{models_dir}/{model_name}"
 
