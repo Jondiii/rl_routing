@@ -1,6 +1,8 @@
 envs.txt
 temp/
 data/
+logs/
+models/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
