@@ -32,7 +32,7 @@ class VRPEnv(gym.Env):
                 maxCapacity = 100, maxNodeCapacity = 6, maxSteps = None,
                 sameMaxNodeVehicles = False, twMin = None, twMax = None,
                 speed = 70, seed = None,  multiTrip = False, singlePlot = False, 
-                name = None, dataPath = None, render_mode = None):
+                name = None, dataPath = None, graphSavePath = None, render_mode = None):
 
         super(VRPEnv, self).__init__()
 
@@ -50,6 +50,7 @@ class VRPEnv(gym.Env):
         self.currTotalSteps = 0
         self.currEpisodeSteps = 0
         self.name = name
+        self.graphSavePath = graphSavePath
 
         self.isDoneFunction = self.isDone
 
@@ -532,20 +533,23 @@ class VRPEnv(gym.Env):
     def close(self):
         super().close()
         
-        self.generateReport('newRewards')
+        if self.graphSavePath:
+            self.generateReport(self.graphSavePath)
+        else:
+            self.generateReport('reporting')
 
 
     # Guarda el conjunto actual de grafos, independientemente de si están completos o no
-    def generateReport(self, dir = 'default' ):
+    def generateReport(self, dir = 'default'):
         if self.grafoCompletado == None:
             return
         
         # Llama a un método de guardado o a otro dependiendo de si se quieren todas las rutas en un mismo plot o no
         if self.singlePlot:
-            self.grafoCompletado.guardarGrafosSinglePlot(dir)
+            self.grafoCompletado.guardarGrafosSinglePlot(directorio = dir)
 
         else:
-            self.grafoCompletado.guardarGrafos(dir)
+            self.grafoCompletado.guardarGrafos(directorio = dir)
 
         self.crearReport(self.ordenVisitasCompletas, self.tiempoFinal, directorio = dir)
 

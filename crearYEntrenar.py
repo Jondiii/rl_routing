@@ -19,11 +19,11 @@ ALGORTIHM = "newRewards" # Nombre de la ejecución (no afecta al algoritmo que s
 models_dir = "models/" + ALGORTIHM # Directorio donde guardar los modelos generados
 log_dir = "logs"          # Directorios donde guardar los logs
 
-ITERATIONS = 500          # Número de iteraciones
+ITERATIONS = 10          # Número de iteraciones
 TIMESTEPS = 2048*10       # Pasos por cada iteración (poner múltiplos de 2048)
 
-nVehiculos = 20
-nNodos = 50
+nVehiculos = 7
+nNodos = 20
 
 if not os.path.exists(models_dir):
     os.makedirs(models_dir)

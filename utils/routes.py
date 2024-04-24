@@ -54,7 +54,7 @@ class Routes:
         return distancia, tiempo
 
     # Guarda una representación visual de los grafos (rutas) obtenidos.
-    def guardarGrafos(self, fecha, directorio = 'grafos', name = 'fig', extension = '.png'):
+    def guardarGrafos(self, fecha = None, directorio = 'grafos', name = 'fig', extension = '.png'):
         # Se guardan por fechas
         if fecha is None:
             fecha = str(date.today())
@@ -92,7 +92,7 @@ class Routes:
     
     # Método que hace lo mismo que el anterior, solo que en vez de dibujar cada ruta (grafo) por separado,
     # se dibujan todas a la vez, en un único plot. Suele quedar un poco caótico.
-    def guardarGrafosSinglePlot(self, fecha, directorio = 'grafos', name = 'fig', extension = '.png'):
+    def guardarGrafosSinglePlot(self, fecha = None, directorio = 'grafos', name = 'fig', extension = '.png'):
         if fecha is None:
             fecha = str(date.today())
     
