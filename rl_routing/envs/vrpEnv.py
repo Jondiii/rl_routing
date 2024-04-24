@@ -424,26 +424,19 @@ class VRPEnv(gym.Env):
         
     # Método que calcula la recompensa a dar al agente.
     def getReward(self, distancia, action, vehicle):
-        # Si el vehículo no se mueve, no hay recompensa.
+        # Si no se mueve ningún vehículo, penalización
         if distancia == 0:
-            return 0
+            return -1
+
+        # Cuando el vehículo termina su ruta recibe una recompensa inversamente proporcional a lo lleno que vaya el vehículo,
+        # a más llenado más recompensa. Por defecto v_loads está a 100 (capacidad máxima), y se le va restando según se recogen pedidos.
+        if action % self.nNodos == 0:
+            if self.v_loads[vehicle] != 0:
+                return round(1/abs(self.v_loads[vehicle]), 2) 
+            return 1
 
         # La recompensa será inversamente proporcional a la distancia recorrida, a mayor distancia, menor recompensa
-        reward = round(1/abs(distancia), 2)
-
-        # Si se han visitado todos los nodos y el vehículo regresa al depot, le añadimos un extra
-        if all(self.visited[1:]):
-            if action == 0:
-                reward += 5 # La idea detrás de esto es recompensar que los vehículos vuelvan al depot
-
-        # La recompensa será también inversamente proporcional a lo lleno que vaya el vehículo, a más llenado más recompensa
-        # Por defecto v_loads está a 100 (capacidad máxima), y se le va restando según se recogen pedidos.
-        if self.v_loads[vehicle] == 0:
-            reward += 1
-        else:
-            reward += round(1/abs(self.v_loads[vehicle]), 2) 
-        
-        return reward
+        return round(1/abs(distancia), 2)
 
 
     # Calculamos cuánto tiempo queda hasta que cierren las ventanas de tiempo.
@@ -536,13 +529,17 @@ class VRPEnv(gym.Env):
         plt.pause(0.2) # PROBAR con esto: https://graphviz.readthedocs.io/en/stable/manual.html
 
 
+    def close(self):
+        super().close()
+        
+        self.generateReport('newRewards')
+
+
     # Guarda el conjunto actual de grafos, independientemente de si están completos o no
-    def generateReport(self):
+    def generateReport(self, dir = 'default' ):
         if self.grafoCompletado == None:
             return
         
-        dir = 'default'
-
         # Llama a un método de guardado o a otro dependiendo de si se quieren todas las rutas en un mismo plot o no
         if self.singlePlot:
             self.grafoCompletado.guardarGrafosSinglePlot(dir)

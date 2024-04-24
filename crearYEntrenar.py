@@ -15,15 +15,15 @@ Definimos primero nombres de carpetas, para que se puedan crear en caso de no ex
 ### MIRAR https://stable-baselines3.readthedocs.io/en/master/guide/callbacks.html#stable_baselines3.common.callbacks.StopTrainingOnNoModelImprovement
 ### PARA HACER EARLY STOPPING DEL ENTRENAMIENTO
 
-ALGORTIHM = "baseAlg" # Nombre de la ejecución (no afecta al algoritmo que se vaya a usar)
+ALGORTIHM = "newRewards" # Nombre de la ejecución (no afecta al algoritmo que se vaya a usar)
 models_dir = "models/" + ALGORTIHM # Directorio donde guardar los modelos generados
 log_dir = "logs"          # Directorios donde guardar los logs
 
-ITERATIONS = 10          # Número de iteraciones
-TIMESTEPS = 2048*5       # Pasos por cada iteración (poner múltiplos de 2048)
+ITERATIONS = 500          # Número de iteraciones
+TIMESTEPS = 2048*10       # Pasos por cada iteración (poner múltiplos de 2048)
 
-nVehiculos = 7
-nNodos = 20
+nVehiculos = 20
+nNodos = 50
 
 if not os.path.exists(models_dir):
     os.makedirs(models_dir)
@@ -52,7 +52,7 @@ ENTRENAMIENTO
 """
 for i in range(1, ITERATIONS+1):
     model.learn(total_timesteps = TIMESTEPS, reset_num_timesteps = False, tb_log_name = ALGORTIHM)
-    model.save(f"{models_dir}/{TIMESTEPS*i}")
+    model.save(f"{models_dir}/{ALGORTIHM}")
 
 print("--- %s minutos ---" % round((time.time() - start_time)/60, 2))
 
