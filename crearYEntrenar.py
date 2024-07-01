@@ -38,8 +38,8 @@ INICIALIZACIÓN DE ENTORNO Y AGENTE
 
 # Para vectorizar el entorno y poder crear varios de manera paralela.
 # env = make_vec_env(VRPEnv, n_envs=1, env_kwargs=dict(nVehiculos = nVehiculos, nNodos = nNodos, maxNodeCapacity = 4, sameMaxNodeVehicles=True))
-env = gym.make('rl_routing:VRPEnv-v0',  nVehiculos = nVehiculos, nNodos = nNodos, maxNodeCapacity = 4, sameMaxNodeVehicles=True, render_mode=None)
-
+#env = gym.make('rl_routing:VRPEnv-v0',  nVehiculos = nVehiculos, nNodos = nNodos, maxNodeCapacity = 4, sameMaxNodeVehicles=True, render_mode=None)
+env = gym.make('rl_routing:VRPEnv-v0', dataPath = 'data', render_mode=None)
 
 # Creamos el modelo. Se puede usar un algoritmo u otro simplemente cambiando el constructor
 # al correspondiente. Lo que hay dentro del constructor no hace falta cambiarlo.
