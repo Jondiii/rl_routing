@@ -55,15 +55,10 @@ class Graph:
     # Método que hace que un nodo sea visitado, devolviendo información sobre la distancia recorrida y el tiempo empleado.
     def visitEdge(self, sourceNode, targetNode):
         if sourceNode == targetNode:
-            return 0, 0
+            return
         
-        distancia = self.getDistance(sourceNode, targetNode)
-        tiempo = self.getTime(distancia)
-
         self.graph.edges[sourceNode, targetNode]["visited"] = True
         self.graph.nodes[targetNode]["visited"] = True
-
-        return distancia, tiempo
 
     # Método encargado de dibujar una ruta concreta.
     def dibujarGrafo(self, ax, edgeColor = "red"):

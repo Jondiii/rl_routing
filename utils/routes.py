@@ -50,9 +50,8 @@ class Routes:
 
     # Hace que un vehículo vaya desde nodo 1 a nodo 2 y marque a nodo 2 como visitado.
     def visitEdge(self, vehiculo, nodo1, nodo2):
-        distancia, tiempo = self.grafos[vehiculo].visitEdge(nodo1, nodo2)
-        return distancia, tiempo
-
+        self.grafos[vehiculo].visitEdge(nodo1, nodo2)
+        
     # Guarda una representación visual de los grafos (rutas) obtenidos.
     def guardarGrafos(self, fecha = None, directorio = 'grafos', name = 'fig', extension = '.png'):
         # Se guardan por fechas
