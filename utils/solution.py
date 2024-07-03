@@ -24,7 +24,7 @@ class Solution:
 
 
     # Por cada vehículo, creamos un grafo.
-    def añadirGrafo(self):
+    def nuevaRuta(self):
         self.rutas.append(Route(self.nNodos, self.coordenadas))
 
 

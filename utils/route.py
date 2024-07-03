@@ -8,6 +8,7 @@ class Route:
     """
     def __init__(self, nNodos, coordenadas) -> None:
         self.nNodos = nNodos
+        self.visitOrder = [0]
 
         # Creamos un grafo completo (es decir, un grafo donde todos los nodos están conectados entre sí)
         self.graph = nx.complete_graph(nNodos)
@@ -48,6 +49,7 @@ class Route:
         
         self.graph.edges[sourceNode, targetNode]["visited"] = True
         self.graph.nodes[targetNode]["visited"] = True
+        self.visitOrder.append[targetNode]
 
     # Método encargado de dibujar una ruta concreta.
     def dibujarGrafo(self, ax, edgeColor = "red"):
