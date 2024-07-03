@@ -16,8 +16,8 @@ parser.add_argument("--file_nodes", help = "File with node information", default
 parser.add_argument("--file_vehicles", help = "File with vehicle information", default=None)
 parser.add_argument("--mode", help = "new_training or load_model", default='new_training')
 parser.add_argument("--algo", help = "Algorithm to be used", default='PPO')
-parser.add_argument("--render_mode", help = "Human", default=None)
-
+parser.add_argument("--render_mode", help = "Human, optional", default=None)
+parser.add_argument("--max_vehicles", help = "Maximum number of vehicles", default=None)
 
 # Read arguments from command line
 args = parser.parse_args()
@@ -35,7 +35,8 @@ if args.mode == 'new_training':
                     vehicleFile = args.file_vehicles,
                     iterations = args.iterations,
                     timesteps = args.timesteps,
-                    render_mode = args.render_mode
+                    render_mode = args.render_mode,
+                    max_vehicles = args.max_vehicles
                 )
 
 

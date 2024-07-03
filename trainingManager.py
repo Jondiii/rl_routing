@@ -30,12 +30,13 @@ class TrainingManager:
                     vehicleFile,
                     iterations,
                     timesteps,
-                    render_mode
+                    render_mode,
+                    max_vehicles,
                     ):
         self.iterations = iterations
         self.timesteps = timesteps
 
-        self.env = gym.make('rl_routing:VRPEnv-v0', dataPath = dataPath, run_name=self.run_name, render_mode=render_mode)
+        self.env = gym.make('rl_routing:VRPEnv-v0', dataPath = dataPath, max_vehicles = max_vehicles, run_name=self.run_name, render_mode=render_mode)
 
         if nodeFile:
             if vehicleFile:
