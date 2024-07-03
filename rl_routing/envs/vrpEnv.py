@@ -202,30 +202,24 @@ class VRPEnv(gym.Env):
     def isTruncated(self):
         if self.maxSteps is None:
             return False
-        
-        if len(self.solution.nuevaRuta()) > self.max_vehicles:
-            return True
-
 
         return True if self.maxSteps <= self.currEpisodeSteps else False
 
 
-    # Método que comprueba que haya finalizado el episodio # TODO: se acaba cuando se llega al número máximo de vehículos o se visitan todos los nodos
-    def isDone(self): 
-        # De normal, todos los vehículos deben estar en el depot y todos los nodos deben haber sido visitados.
-        if np.all(self.v_posicionActual == 0):
-            allVisited = np.all(self.n_visited == 1)
-            if allVisited:
-                self.grafoCompletado = copy.deepcopy(self.solution) # Guardamos siempre el último conjunto de rutas completas, para poder dibujarlas al finalizar el entrenamiento.
-                self.ordenVisitasCompletas = copy.deepcopy(self.v_ordenVisitas) # Lo mismo con el orden de visitas
-                self.tiempoFinal = copy.deepcopy(self.v_travelTime) # Y con los tiempos
-                return True
+    def isDone(self): # TODO: se acaba cuando se llega al número máximo de vehículos o se visitan todos los nodos
+        """
+        Método que comprueba si un episodio ha finalizado. Este finalizará si una de las dos se cumple:
+        - Todos los nodos se han visitado
+        - Se han empleado todos los nodos disponibles
+        """
+        allVisited = np.all(self.n_visited == 1)
+        if allVisited:
+            self.grafoCompletado = copy.deepcopy(self.solution) # Guardamos siempre el último conjunto de rutas completas, para poder dibujarlas al finalizar el entrenamiento.
+
+            return True
         
-        # Si se han visitado todos los nodos pero no han regresado los vehículos al depot, este se pone como no visitado
-        else:
-            allVisited = np.all(self.n_visited == 1)
-            if allVisited:
-                self.n_visited[0] = 0
+        if len(self.solution.nuevaRuta()) > self.max_vehicles:
+            return True
 
         return False
     
@@ -356,16 +350,7 @@ class VRPEnv(gym.Env):
                 if self.minimumVisited >= 1:
                     self.minimumVisited = 1
 
-        # Si se permiten múltiples viajes, se tendrá que revisar que ha finalizado el episodio aunque los vehículos no estén en el depot
-        if self.multiTrip:
-            porcentajeVisitados = np.count_nonzero(self.n_visited[1:self.nNodos] == 1) / self.nNodos
-
-            if porcentajeVisitados >= self.minimumVisited:
-                self.grafoCompletado = copy.deepcopy(self.solution)
-                self.ordenVisitasCompletas = copy.deepcopy(self.v_ordenVisitas)
-                self.tiempoFinal = copy.deepcopy(self.v_travelTime)
-                return True
-    
+   
         # Si no es multitrip, se tendrá que comprobar que todos han regresado al depot y que cumplen el porcentaje mínimo.
         if np.all(self.v_posicionActual == 0):
             porcentajeVisitados = np.count_nonzero(self.n_visited[:self.nNodos] == 1) / self.nNodos
@@ -416,17 +401,7 @@ class VRPEnv(gym.Env):
         # Vamos disminuyendo el mínimo a visitar cada everyNTimesteps, en una proporción de decayingRate
         if self.currTotalSteps % self.everyNTimesteps == 0:
             self.minimumVisited -= self.decayingRate
-
-        # Si tenemos multiTrip, entonces no es necesario que todos los vehículos hayan regresado al depot.
-        if self.multiTrip:
-            porcentajeVisitados = np.count_nonzero(self.n_visited[1:self.nNodos] == 1) / self.nNodos
-
-            if porcentajeVisitados >= self.minimumVisited:
-                self.grafoCompletado = copy.deepcopy(self.solution)
-                self.ordenVisitasCompletas = copy.deepcopy(self.v_ordenVisitas)
-                self.tiempoFinal = copy.deepcopy(self.v_travelTime)
-                return True
-        
+       
         # Si no es multitrip, solo comprobaremos si ha finalizado el episodio si los vehículos están en el depot
         if np.all(self.v_posicionActual == 0):
             porcentajeVisitados = np.count_nonzero(self.n_visited[:self.nNodos] == 1) / self.nNodos
