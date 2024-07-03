@@ -2,10 +2,10 @@ from gymnasium.spaces import Box, Dict, Discrete, MultiDiscrete
 from sklearn.metrics.pairwise import haversine_distances
 import gymnasium as gym
 import numpy as np
-from utils.routes import Routes
+from utils.solution import Solution
 from utils.dataGenerator import DataGenerator
 from utils.dataReader import DataReader
-import networkx as nx
+import pandas as pd
 import matplotlib.pyplot as plt
 import copy
 import os
@@ -24,8 +24,9 @@ class VRPEnv(gym.Env):
 
     nNodos = 0
     nVehiculos = 0
-    travelTime = None
+    v_travelTime = None
 
+    closestNodes = None
 
     n_coordenadas = None
     n_originalDemands = None
@@ -34,16 +35,14 @@ class VRPEnv(gym.Env):
     n_twMin = None
     n_twMax = None
     
-    v_loads = None
+    v_load = None
     v_maxCapacity = None
     v_speeds = None
 
 
-
     
-    def __init__(self, dataPath = None, nodeFile = 'nodes', vehicleFile = 'vehicles', maxSteps = None,
-                seed = None,  multiTrip = False, singlePlot = False, 
-                run_name = None, graphSavePath = None, render_mode = None):
+    def __init__(self, dataPath = None, max_vehicles = None, nodeFile = 'nodes', vehicleFile = 'vehicles', maxSteps = np.nan,
+                seed = None, singlePlot = False, run_name = None, graphSavePath = None, render_mode = None):
 
         super(VRPEnv, self).__init__()
 
@@ -55,7 +54,6 @@ class VRPEnv(gym.Env):
 
         self.render_mode = render_mode
 
-        self.multiTrip = multiTrip
         self.singlePlot = singlePlot
         self.maxSteps = maxSteps
         self.currTotalSteps = 0
@@ -63,7 +61,7 @@ class VRPEnv(gym.Env):
         self.run_name = run_name
         self.graphSavePath = graphSavePath
 
-        self.travelTime = np.zeros(shape=(self.nVehiculos,1))
+        self.v_travelTime = 0
 
         self.isDoneFunction = self.isDone
 
@@ -76,135 +74,161 @@ class VRPEnv(gym.Env):
         self.createSpaces()
 
 
+        if not max_vehicles:
+            self.max_vehicles = len(self.vehicleInfo)
+        else:
+            self.max_vehicles = max_vehicles
+
+
+
     # Método que creará un entorno a partir de lo que se haya almacenado en los ficheros.
     def readEnvFromFile(self, dataPath, nodeFile, vehicleFile):
         self.dataReader  = DataReader(dataPath, nodeFile, vehicleFile)
 
-        nodeInfo = self.dataReader.loadNodeData()
-        vehicleInfo = self.dataReader.loadVehicleData()
+        self.nodeInfo = pd.DataFrame(self.dataReader.loadNodeData())
+        self.nodeInfo['is_visited'] = 0
+        self.nodeInfo = self.nodeInfo.reset_index()
+        self.vehicleInfo = pd.DataFrame(self.dataReader.loadVehicleData())
 
-        self.nNodos = len(nodeInfo["coordenadas_X"])
-        self.nVehiculos = len(vehicleInfo["maxCapacity"])
+        self.nNodos = len(self.nodeInfo)
+        self.nVehiculos = len(self.vehicleInfo)
 
         # Características de los nodos
-        self.n_coordenadas = np.array([nodeInfo["coordenadas_X"], nodeInfo["coordenadas_Y"]]).T
-        self.n_originalDemands = nodeInfo["demandas"].to_numpy()
-        self.n_demands = copy.deepcopy(self.n_originalDemands)
-        self.n_maxNodeCapacity = nodeInfo["maxDemand"][0] # El atributo maxDemand debería ser igual en todos los nodos del fichero
+        self.n_coordenadas = np.array([self.nodeInfo["coordenadas_X"], self.nodeInfo["coordenadas_Y"]]).T
+        self.n_maxNodeCapacity = max(self.nodeInfo['demandas'])
 
         # Características de los vehículos
-        self.v_loads = vehicleInfo["maxCapacity"].to_numpy()
-        self.v_maxCapacity = self.v_loads.max()
-        self.v_speeds = vehicleInfo["speed"].to_numpy()
+        self.v_load = self.vehicleInfo["maxCapacity"].to_numpy()
+        self.v_maxCapacity = self.v_load.max()
+        self.v_speeds = self.vehicleInfo["speed"].to_numpy()
 
         # Ventanas de tiempo
-        self.n_twMin = nodeInfo["minTW"].to_numpy()
-        self.n_twMax = nodeInfo["maxTW"].to_numpy()
+        self.n_twMin = self.nodeInfo["minTW"].to_numpy()
+        self.n_twMax = self.nodeInfo["maxTW"].to_numpy()
 
 
     # Método que creará el espacio de acciones y el de observaciones.
     def createSpaces(self):
-        self.action_space = Discrete(self.nNodos * self.nVehiculos -1)
+        n_visible_nodes = 5
+        self.action_space = Discrete(n_visible_nodes) # 0-4
 
         self.observation_space = Dict({
-            "n_visited" :  MultiDiscrete(np.zeros(shape=self.nNodos) + 2),
-            "v_curr_position" : MultiDiscrete(np.zeros(shape=self.nVehiculos) + self.nNodos),
-            "v_loads" : MultiDiscrete(np.zeros(shape=self.nVehiculos) + self.v_maxCapacity + 1), # SOLO se pueden usar enteros
-            "n_demands" : MultiDiscrete(np.zeros(shape=self.nNodos) + self.n_maxNodeCapacity * 5),
-            "n_distances" : Box(low = 0, high = float('inf'), shape = (self.nVehiculos * self.nNodos,), dtype=float),
+            "v_curr_position" : Discrete(self.nNodos), # Se almacena la posición actual
+            "v_load" : Discrete(self.v_maxCapacity + 1), # SOLO se pueden usar enteros
+            "n_demands" : MultiDiscrete(np.zeros(shape=n_visible_nodes) + self.n_maxNodeCapacity+1),
+            "n_distances" : Box(low = 0, high = float('inf'), shape = (n_visible_nodes,), dtype=float),
         })
+
+        print(self.observation_space)
 
     # Método encargado de ejecutar las acciones seleccionadas por el agente.
     def step(self, action):
         self.currTotalSteps += 1 
         self.currEpisodeSteps += 1
         
-        # Comprobamos que la acción sea sobre un nodo que forme parte del problema (relevante cuando nNodos != nMaxNodos)
-        if action >= self.nNodos * self.nVehiculos:
-            return self._get_obs(), 0, False, self.isTruncated(), dict(info = "Acción rechazada por actuar sobre un nodo no disponible.", accion = action, nNodos = self.nNodos)
+        # Calcular el nodo a visitar
+        node = self.closestNodes['index'][action]
 
-        vehiculo = action // self.nNodos
+        if not self.checkAction(node):
+            return self._get_obs(), -1, False, self.isTruncated(), dict()
 
-        node = action % self.nNodos
+        # Añadimos la demanda del nodo a la carga del vehículo
+        self.v_load-= self.n_demands[action]
 
-        if not self.checkAction(node, vehiculo):
-            return self._get_obs(), 0, False, self.isTruncated(), dict()
-
-        # Eliminar el lugar que se acaba de visitar de las posibles acciones
-        self.visited[node] = 1
-
-        # Si se permite el multiTrip entonces un vehículo podrá pasar por el depot para vaciar su carga y continuar visitando nodos.
-        if self.multiTrip:
-            if node == 0: # Si la acción consiste en volver al depot...
-                self.v_loads[vehiculo] = self.v_maxCapacity
-                self.visited[node] = 0 # Si lo que se ha visitado es el depot, no lo marcamos como visitado 
-
-        self.v_loads[vehiculo] -= self.n_demands[node] # Añadimos la demanda del nodo a la carga del vehículo
-
-        distancia, tiempo = self.rutas.visitEdge(vehiculo, self.v_posicionActual[vehiculo], node)
-
-        self.n_demands[node] = 0
+        distancia, tiempo = self.getDistanceTime(action)
         
-        reward = self.getReward(distancia, node, vehiculo)
-
-        self.v_posicionActual[vehiculo] = node
-
-        self.v_ordenVisitas[vehiculo].append(node)
-
-        self.n_distances[vehiculo] = self.distanceMatrix[node]
-
-        self.travelTime[vehiculo] += tiempo
-
-        terminated = self.isDoneFunction()
-
+        self.visitEdge(node)
         
-        return self._get_obs(), reward, terminated, self.isTruncated(), self._get_info()
+        self.v_travelTime += tiempo
+
+        self.v_posicionActual = node
+
+        if node == 0:
+            self.v_travelTime = 0
+            self.v_load = self.v_maxCapacity
+
+
+        self.closestNodes = self.getClosestNodes()
+
+        self.n_demands = np.array(self.closestNodes['demandas'])
+        self.n_distances = np.array(self.closestNodes['distances'])
+
+        return self._get_obs(), self.getReward(distancia, node), self.isDoneFunction(), self.isTruncated(), self._get_info()
 
 
     # Método para resetear el entorno. Se hace al principio del entrenamiento y tras cada episodio.
     def reset(self, seed = None, options = None):
         super().reset(seed=seed, options=options)
 
-        self.visited = np.zeros(shape=(self.nNodos), dtype=np.int64) # Marcamos todo como no visitado.
-
-        # Si nNodos != nMaxNodos, se deben marcar los nodos de sobra como visitados, para que no sean válidos en ningún caso.
-        self.visited = np.pad(self.visited, (0,self.nNodos - self.nNodos), 'constant', constant_values = 1)
-
-        if self.multiTrip:
-            self.visited[0] = 0
-        else:
-            self.visited[0] = 1 # El depot comienza como visitado.
-
-        self.v_posicionActual = np.zeros(shape = self.nVehiculos,dtype=np.int64)
-
-        # Vaciamos los vehículos. 
-        self.v_loads = np.zeros(shape=self.nVehiculos,dtype=np.int64) + self.v_maxCapacity
-        self.v_loads = np.pad(self.v_loads, (0, self.nVehiculos - self.nVehiculos), 'constant', constant_values = 0)
-
-        # Restauramos las demandas originales de los nodos.
-        self.n_demands = copy.deepcopy(self.n_originalDemands)
-
-        self.travelTime = np.zeros(shape=(self.nVehiculos), dtype = float)
-        self.travelTime = np.pad(self.travelTime, (0, self.nVehiculos - self.nVehiculos), 'constant', constant_values = 999)
-
-        # Calculamos las distancias que hay desde cada vehículo a cada nodo.
-        self.n_distances = np.zeros(shape = (self.nVehiculos, self.nNodos))
-
-        for i in range(0, self.nVehiculos):
-            self.n_distances[i] = self.distanceMatrix[0]
-
-        # Creamos un conjunto de rutas nuevo
-        self.rutas = Routes(self.nVehiculos, self.nNodos, self.nVehiculos, self.nNodos, self.n_demands, self.n_coordenadas, self.v_speeds)
-
-        # Creamos una nueva lista que almacena el orden en el que se visitan los nodos.
-        self.v_ordenVisitas = []
-        # Añadimos nuevas listas que tienen ya un 0 (depot) al comienzo, tantas como vehículos haya.
-        for _ in range(self.nVehiculos):
-            self.v_ordenVisitas.append([0])
+        # Marcamos los nodos como no visitados
+        self.nodeInfo['is_visited'] = 0
+        
+        # Reiniciamos el vehículo
+        self.v_posicionActual = 0
+        self.v_travelTime = 0
+        self.v_load = self.v_maxCapacity
+        self.v_ordenVisitas = [0]
 
         self.currEpisodeSteps = 0
+
+        self.closestNodes = self.getClosestNodes() # Todo se tiene que pillar de aquí.
+
+        self.n_demands = np.array(self.closestNodes['demandas'])
+        self.n_distances = np.array(self.closestNodes['distances'])
+
+
+        # Creamos un conjunto de rutas nuevo
+        self.solution = Solution(self.nVehiculos, self.nNodos, self.nVehiculos, self.nNodos, self.n_demands, self.n_coordenadas, self.v_speeds)
                
-        return self._get_obs(), self._get_info() # Con esto si quitamos el parámetro apply_api_compatibility 
+        return self._get_obs(), self._get_info()
+
+
+    # Método que obtiene las observaciones del entorno
+    def _get_obs(self):
+        obs = dict()
+        obs["v_curr_position"] = self.v_posicionActual
+        obs["v_load"] = self.v_load
+        obs["n_demands"] = self.n_demands 
+        obs["n_distances"] = self.n_distances
+
+        return obs
+
+    def _get_info(self, text = None):
+        info = {'info' : str(text)}
+        return info
+
+    # Truncated se usa para indicar si el episodio ha finalizado porque se ha cumplido una condición fuera del
+    # objetivo final del episodio, como haber alcanzado cierto límite de tiempo.
+    def isTruncated(self):
+        if self.maxSteps is None:
+            return False
+        
+        if len(self.solution.nuevaRuta()) > self.max_vehicles:
+            return True
+
+
+        return True if self.maxSteps <= self.currEpisodeSteps else False
+
+
+    # Método que comprueba que haya finalizado el episodio # TODO: se acaba cuando se llega al número máximo de vehículos o se visitan todos los nodos
+    def isDone(self): 
+        # De normal, todos los vehículos deben estar en el depot y todos los nodos deben haber sido visitados.
+        if np.all(self.v_posicionActual == 0):
+            allVisited = np.all(self.n_visited == 1)
+            if allVisited:
+                self.grafoCompletado = copy.deepcopy(self.solution) # Guardamos siempre el último conjunto de rutas completas, para poder dibujarlas al finalizar el entrenamiento.
+                self.ordenVisitasCompletas = copy.deepcopy(self.v_ordenVisitas) # Lo mismo con el orden de visitas
+                self.tiempoFinal = copy.deepcopy(self.v_travelTime) # Y con los tiempos
+                return True
+        
+        # Si se han visitado todos los nodos pero no han regresado los vehículos al depot, este se pone como no visitado
+        else:
+            allVisited = np.all(self.n_visited == 1)
+            if allVisited:
+                self.n_visited[0] = 0
+
+        return False
+    
 
     """
     Método que comprueba la validez de una acción. La acción será incorrecta si:
@@ -213,79 +237,93 @@ class VRPEnv(gym.Env):
     - Se visita un nodo con una demanda superior a la que puede llevar el vehículo.
     - El vehículo llega al nodo antes del inicio de la ventana de tiempo o después del cierre de esta.
     """
-    def checkAction(self, action, vehiculo):
-        if self.visited[action] == 1:
+    def checkAction(self, node):
+        if self.v_posicionActual == node:
             return False
         
-        if self.v_posicionActual[vehiculo] == action:
-            return False
-        
-        if self.v_loads[vehiculo] - self.n_demands[action] < 0:
+        if self.v_load - self.n_demands[node] < 0:
             return False
 
-        if self.n_twMin[action] > self.travelTime[vehiculo]:
+        if self.n_twMin[node] > self.v_travelTime:
             #print("MIN: {} - {}".format(self.minTW[action], self.currTime[vehiculo]))
             return False
 
-        if self.n_twMax[action] < self.travelTime[vehiculo]:
+        if self.n_twMax[node] < self.v_travelTime:
             #print("MAX: {} - {}".format(self.maxTW[action], self.currTime[vehiculo]))
             return False
 
         return True
     
 
-    # Método que obtiene las observaciones del entorno
-    def _get_obs(self):
-        obs = dict()
-        obs["n_visited"] = self.visited
-        obs["v_curr_position"] = self.v_posicionActual
-        obs["v_loads"] = self.v_loads
-        obs["n_demands"] = self.n_demands 
-        obs["n_distances"] = self.n_distances.flatten() # Como es una matriz multidimensional hay que aplanarla
+    def getClosestNodes(self):
+        # Obtener la información del nodo en la posición 0 (depot)
+        depot_info = self.nodeInfo.loc[0]
 
-        return obs
+        # Distancias desde el nodo en v_posicionActual a todos los otros nodos
+        distances = self.distanceMatrix[self.v_posicionActual]
 
-    def _get_info(self):
-        info = {'info' : 'None'}
-        return info
+        # Filtrar los nodos no visitados y excluir el nodo actual y el depot
+        unvisited_nodes = self.nodeInfo[
+            (self.nodeInfo['is_visited'] == 0) & 
+            (self.nodeInfo.index != self.v_posicionActual) & 
+            (self.nodeInfo.index != 0)
+        ]
 
-    # Truncated se usa para indicar si el episodio ha finalizado porque se ha cumplido una condición fuera del
-    # objetivo final del episodio, como haber alcanzado cierto límite de tiempo.
-    def isTruncated(self):
-        if self.maxSteps is None:
-            return False
+        # Obtener los índices de los nodos no visitados
+        unvisited_indices = unvisited_nodes.index
 
-        return True if self.maxSteps <= self.currEpisodeSteps else False
+        # Filtrar las distancias para considerar solo nodos no visitados
+        filtered_distances = distances[unvisited_indices]
+
+        # Ordenar los índices de los nodos no visitados por distancia
+        closest_indices = unvisited_indices[np.argsort(filtered_distances)[:4]]
+
+        # Obtener la información de los nodos más cercanos
+        closest_nodes_info = self.nodeInfo.loc[closest_indices]
+
+        # Obtener las distancias correspondientes a los nodos más cercanos
+        closest_distances = filtered_distances[np.argsort(filtered_distances)[:4]]
+
+        # Crear el diccionario con la información del depot y los nodos más cercanos
+        result = {}
+        for column in self.nodeInfo.columns:
+            if column in ['coordenadas_X', 'coordenadas_Y']:
+                values = [depot_info[column]] + closest_nodes_info[column].tolist()
+            else:
+                values = [int(depot_info[column])] + [int(x) for x in closest_nodes_info[column].tolist()]
+
+            # Rellenar con copias del depot si hay menos de 4 nodos no visitados
+            while len(values) < 5:
+                values.append(depot_info[column] if column in ['coordenadas_X', 'coordenadas_Y'] else int(depot_info[column]))
+
+            result[column] = np.array(values)
+
+        # Añadir las distancias al diccionario result
+        distances = [0] + closest_distances.tolist()
+        while len(distances) < 5:
+            distances.append(0)  # La distancia al depot es 0
+        result['distances'] = np.array(distances)
+
+        return result
 
 
-    # Método que comprueba que haya finalizado el episodio
-    def isDone(self): 
-        if self.multiTrip:
-            allVisited = np.all(self.visited[1:] == 1) # Con multitrip, solo miramos que se hayan visitado todos los nodos
+    def getDistanceTime(self, action):
+        distancia = self.n_distances[action]
+        tiempo = distancia * self.v_speeds[0] # TODO
 
-            # Si se han visitado, damos el episodio por acabado
-            if allVisited:
-                self.grafoCompletado = copy.deepcopy(self.rutas) # Guardamos siempre el último conjunto de rutas completas, para poder dibujarlas al finalizar el entrenamiento.
-                self.ordenVisitasCompletas = copy.deepcopy(self.v_ordenVisitas) # Lo mismo con el orden de visitas
-                self.tiempoFinal = copy.deepcopy(self.travelTime) # Y con los tiempos
-                return True
+        return distancia, tiempo
+
+
+    def visitEdge(self, node):
+        """
+        Marca el nodo correspondiente como visitado y se actualiza el Grafo.
+        """
+
+        self.nodeInfo.loc[node, 'is_visited'] = 1
         
-        # De normal, todos los vehículos deben estar en el depot y todos los nodos deben haber sido visitados.
-        if np.all(self.v_posicionActual == 0):
-            allVisited = np.all(self.visited == 1)
-            if allVisited:
-                self.grafoCompletado = copy.deepcopy(self.rutas) # Guardamos siempre el último conjunto de rutas completas, para poder dibujarlas al finalizar el entrenamiento.
-                self.ordenVisitasCompletas = copy.deepcopy(self.v_ordenVisitas) # Lo mismo con el orden de visitas
-                self.tiempoFinal = copy.deepcopy(self.travelTime) # Y con los tiempos
-                return True
-        
-        # Si se han visitado todos los nodos pero no han regresado los vehículos al depot, este se pone como no visitado
-        else:
-            allVisited = np.all(self.visited == 1)
-            if allVisited:
-                self.visited[0] = 0
+        self.solution.visitEdge(self.v_posicionActual, node)
 
-        return False
+
 
     """
     Método que añade los parámetros iniciales del método increasingIsDone.
@@ -320,29 +358,29 @@ class VRPEnv(gym.Env):
 
         # Si se permiten múltiples viajes, se tendrá que revisar que ha finalizado el episodio aunque los vehículos no estén en el depot
         if self.multiTrip:
-            porcentajeVisitados = np.count_nonzero(self.visited[1:self.nNodos] == 1) / self.nNodos
+            porcentajeVisitados = np.count_nonzero(self.n_visited[1:self.nNodos] == 1) / self.nNodos
 
             if porcentajeVisitados >= self.minimumVisited:
-                self.grafoCompletado = copy.deepcopy(self.rutas)
+                self.grafoCompletado = copy.deepcopy(self.solution)
                 self.ordenVisitasCompletas = copy.deepcopy(self.v_ordenVisitas)
-                self.tiempoFinal = copy.deepcopy(self.travelTime)
+                self.tiempoFinal = copy.deepcopy(self.v_travelTime)
                 return True
     
         # Si no es multitrip, se tendrá que comprobar que todos han regresado al depot y que cumplen el porcentaje mínimo.
         if np.all(self.v_posicionActual == 0):
-            porcentajeVisitados = np.count_nonzero(self.visited[:self.nNodos] == 1) / self.nNodos
+            porcentajeVisitados = np.count_nonzero(self.n_visited[:self.nNodos] == 1) / self.nNodos
             if porcentajeVisitados >= self.minimumVisited:
-                self.grafoCompletado = copy.deepcopy(self.rutas)
+                self.grafoCompletado = copy.deepcopy(self.solution)
                 self.ordenVisitasCompletas = copy.deepcopy(self.v_ordenVisitas)
-                self.tiempoFinal = copy.deepcopy(self.travelTime)
+                self.tiempoFinal = copy.deepcopy(self.v_travelTime)
                 return True
         
         # Si no están todos en el depot, se marca el depósito como no visitado para que el/los vehículos que queden puedan regresar.
         else:
-            porcentajeVisitados = np.count_nonzero(self.visited[:self.nNodos] == 1) / self.nNodos
+            porcentajeVisitados = np.count_nonzero(self.n_visited[:self.nNodos] == 1) / self.nNodos
             
             if porcentajeVisitados >= self.minimumVisited:
-                self.visited[0] = 0
+                self.n_visited[0] = 0
 
         return False
 
@@ -381,46 +419,37 @@ class VRPEnv(gym.Env):
 
         # Si tenemos multiTrip, entonces no es necesario que todos los vehículos hayan regresado al depot.
         if self.multiTrip:
-            porcentajeVisitados = np.count_nonzero(self.visited[1:self.nNodos] == 1) / self.nNodos
+            porcentajeVisitados = np.count_nonzero(self.n_visited[1:self.nNodos] == 1) / self.nNodos
 
             if porcentajeVisitados >= self.minimumVisited:
-                self.grafoCompletado = copy.deepcopy(self.rutas)
+                self.grafoCompletado = copy.deepcopy(self.solution)
                 self.ordenVisitasCompletas = copy.deepcopy(self.v_ordenVisitas)
-                self.tiempoFinal = copy.deepcopy(self.travelTime)
+                self.tiempoFinal = copy.deepcopy(self.v_travelTime)
                 return True
         
         # Si no es multitrip, solo comprobaremos si ha finalizado el episodio si los vehículos están en el depot
         if np.all(self.v_posicionActual == 0):
-            porcentajeVisitados = np.count_nonzero(self.visited[:self.nNodos] == 1) / self.nNodos
+            porcentajeVisitados = np.count_nonzero(self.n_visited[:self.nNodos] == 1) / self.nNodos
                         
             if porcentajeVisitados >= self.minimumVisited:
-                self.grafoCompletado = copy.deepcopy(self.rutas)
+                self.grafoCompletado = copy.deepcopy(self.solution)
                 self.ordenVisitasCompletas = copy.deepcopy(self.v_ordenVisitas)
-                self.tiempoFinal = copy.deepcopy(self.travelTime)
+                self.tiempoFinal = copy.deepcopy(self.v_travelTime)
                 return True
         
         # Si no lo están, marcamos el depot como no visitado 
         else:
-            porcentajeVisitados = np.count_nonzero(self.visited[:self.nNodos] == 1) / self.nNodos
+            porcentajeVisitados = np.count_nonzero(self.n_visited[:self.nNodos] == 1) / self.nNodos
             
             if porcentajeVisitados >= self.minimumVisited:
-                self.visited[0] = 0
+                self.n_visited[0] = 0
 
      
         return False
     
-    def createMatrix(self, value, shape):
-        if isinstance(value, np.ndarray):
-            return value
-
-        if isinstance(value, list):
-            return np.array(value)
-        
-        return np.zeros(shape) + value
-
         
     # Método que calcula la recompensa a dar al agente.
-    def getReward(self, distancia, action, vehicle):
+    def getReward(self, distancia, action):
         # Si no se mueve ningún vehículo, penalización
         if distancia == 0:
             return -1
@@ -428,8 +457,8 @@ class VRPEnv(gym.Env):
         # Cuando el vehículo termina su ruta recibe una recompensa inversamente proporcional a lo lleno que vaya el vehículo,
         # a más llenado más recompensa. Por defecto v_loads está a 100 (capacidad máxima), y se le va restando según se recogen pedidos.
         if action % self.nNodos == 0:
-            if self.v_loads[vehicle] != 0:
-                return round(1/abs(self.v_loads[vehicle]), 2) 
+            if self.v_load != 0:
+                return round(1/abs(self.v_load), 2) 
             return 1
 
         # La recompensa será inversamente proporcional a la distancia recorrida, a mayor distancia, menor recompensa
@@ -441,17 +470,18 @@ class VRPEnv(gym.Env):
     # No se puede hacer broadcast de esos rangos, pero con np.array([self.currTime]).T tenemos que curr time tiene shape (nVehiculos,1)
     # y con eso sí se puede hacer la resta que queremos
     def getTimeLeftTWClose(self):
-        twClose = np.repeat([self.n_twMax], repeats=self.nVehiculos, axis=0) - np.array([self.travelTime]).T
+        twClose = np.repeat([self.n_twMax], repeats=self.nVehiculos, axis=0) - np.array([self.v_travelTime]).T
 
         return twClose
 
 
-    # Creamos las matrices de distancias y de tiempo. 
+    # Creamos las matrices de distancias y de tiempo. # TODO igual hacerlo con valhalla
     # Estas matrices tendrán ya calculados la distancia y el tiempo que hay entre cada par de nodos, de manera que en el resto del código,
     # para saber estos datos, bastará con consultar las matrices, ahorrando cálculos.
     def createMatrixes(self):
         self.distanceMatrix = haversine_distances(X = self.n_coordenadas*np.pi/180,
                                                   Y = self.n_coordenadas*np.pi/180)
+
 
     # Se crean y añaden ventanas del tiempo al problema en función de los valores especificados.
     def crearTW(self, n_twMin, n_twMax):
@@ -487,8 +517,8 @@ class VRPEnv(gym.Env):
         self.n_maxNodeCapacity = self.dataGen.nodeInfo["maxDemand"][0] # El atributo maxDemand debería ser igual en todos los nodos del fichero
 
         # Características de los vehículos
-        self.v_loads = self.dataGen.vehicleInfo["maxCapacity"].to_numpy()
-        self.v_maxCapacity = self.v_loads.max()
+        self.v_load = self.dataGen.vehicleInfo["maxCapacity"].to_numpy()
+        self.v_maxCapacity = self.v_load.max()
         self.v_speeds = self.dataGen.vehicleInfo["speed"].to_numpy()
 
         # Ventanas de tiempo
@@ -504,9 +534,9 @@ class VRPEnv(gym.Env):
             self.grafoCompletado.guardarGrafosSinglePlot(dir)
 
         else:
-            self.grafoCompletado.guardarGrafos(dir)
+            self.grafoCompletado.guardarSolucion(dir)
 
-        self.crearReport(self.ordenVisitasCompletas, self.tiempoFinal, directorio = dir)
+        #self.crearReport(self.ordenVisitasCompletas, self.tiempoFinal, directorio = dir)
 
 
     # Crea y guarda una imagen y un report el último conjunto de grafos completado 
@@ -518,10 +548,10 @@ class VRPEnv(gym.Env):
 
         plt.clf()
 
-        for n, idGrafo in enumerate(range(len(self.rutas.grafos))):
+        for n, idGrafo in enumerate(range(len(self.solution.rutas))):
             ax = plt.subplot(self.num_rows, self.num_columns, n + 1)
 
-            self.rutas.grafos[idGrafo].dibujarGrafo(ax = ax)
+            self.solution.rutas[idGrafo].dibujarGrafo(ax = ax)
 
         plt.pause(0.2) # PROBAR con esto: https://graphviz.readthedocs.io/en/stable/manual.html
 
@@ -545,14 +575,15 @@ class VRPEnv(gym.Env):
             self.grafoCompletado.guardarGrafosSinglePlot(directorio = dir)
 
         else:
-            self.grafoCompletado.guardarGrafos(directorio = dir)
+            self.grafoCompletado.guardarSolucion(directorio = dir)
 
-        self.crearReport(self.ordenVisitasCompletas, self.tiempoFinal, directorio = dir)
+        #self.crearReport(self.ordenVisitasCompletas, self.tiempoFinal, directorio = dir)
 
 
     # Método que crea un pequeño report sobre las rutas obtenidas.
     # Simplemente crea un fichero con las rutas creadas mostrando el orden de las visitas, la duración de cada ruta y la duración
     # total de todas las rutas.
+    # TODO esto que lo haga el mismo método que guarde la solución
     def crearReport(self, v_ordenVisitas, travelTime, fecha = None, directorio = 'reports', name = 'report', extension = '.txt'):
         if fecha is None:
             fecha = str(date.today())
@@ -585,17 +616,3 @@ class VRPEnv(gym.Env):
             f.write("\n\nTiempo total: " + str(round(tiempoTotal, 2)) + " min")
 
             f.close()
-
-    # Hace los cálculos necesarios para pasar de una acción a un vehículo y un nodo a visitar, y lo devuelve como string. No se usa.
-    def actionParser(self, action):
-        vehiculo = action // self.nNodos        
-        action = action % self.nNodos
-
-        return str(vehiculo) + "_" + str(action)
-    
-    # Para pasar el tiempo a horas y minutos devolverlo como string. No se usa. Creo.
-    def minToStr(self, time):
-        hora = time / 60
-        minutos = time // 60
-
-        return str(hora) + ":" + str(minutos)
