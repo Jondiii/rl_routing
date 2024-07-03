@@ -2,18 +2,12 @@ import networkx as nx
 import numpy as np
 
 # Esta clase es la encargada de representar rutas de manera individual.
-class Graph:
+class Route:
     """
     Recibe el número de nodos, sus demandas, las coordenadas y la velocidad del vehículo.
     """
-    def __init__(self, nNodos, demands, coordenadas, speed, nDepots = 1, drawDemand = True) -> None:
+    def __init__(self, nNodos, coordenadas) -> None:
         self.nNodos = nNodos
-        self.nDepots = nDepots
-        self.demands = demands
-        self.speed = speed
-
-        # Indica si se debe poner la demanda junto cada nodo o no.
-        self.drawDemand = drawDemand
 
         # Creamos un grafo completo (es decir, un grafo donde todos los nodos están conectados entre sí)
         self.graph = nx.complete_graph(nNodos)
@@ -32,11 +26,6 @@ class Graph:
         depotDict = {i: depot for i, depot in enumerate(depotList)}
         nx.set_node_attributes(self.graph, depotDict, "depot")
         
-        # Añadimos el atributo demandas. El depot no tiene demanda nunca.
-        self.demands[0] = 0 # El depot no tiene demanda
-        node_demand = {i: d for i, d in enumerate(self.demands)}
-        nx.set_node_attributes(self.graph, node_demand, "demand")
-
         # Marcamos todos los nodos como no visitados
         nx.set_node_attributes(self.graph, False, "visited")
 
@@ -63,7 +52,6 @@ class Graph:
     # Método encargado de dibujar una ruta concreta.
     def dibujarGrafo(self, ax, edgeColor = "red"):
         # Método que comprueba si un nodo ha sido visitado o no.
-
         def isNodeVisited(node):
             return (self.graph.nodes[node]["visited"] == True) or (self.graph.nodes[node]["depot"] == True)
         
@@ -104,23 +92,3 @@ class Graph:
         nx.draw_networkx_labels(
             self.graph, posicionIDNodo, labels=labelIDNodo, ax=ax, font_color = "white", font_size = 8
         )
-
-        # Pintamos la demanda
-        if self.drawDemand:
-            posicionLabelDemanda = {k: (v + self.offset) for k, v in posicion.items()}
-            labelDemanda = nx.get_node_attributes(subGrafo, "demand")
-            labelDemanda = {k: np.round(v, 2) for k, v in labelDemanda.items()}
-            nx.draw_networkx_labels(
-                self.graph, posicionLabelDemanda, labels=labelDemanda, ax=ax
-            )
-
-
-
-    def getDistance(self, node1, node2):
-        # Supuestamente esta es la forma más realista de calcular la distancia entre dos coordenadas:
-        # https://stackoverflow.com/questions/1401712/how-can-the-euclidean-distance-be-calculated-with-numpy
-        return np.linalg.norm(self.graph.nodes[node1]["coordinates"] - self.graph.nodes[node2]["coordinates"])
-
-    # Calculamos el tiempo en horas que se tarda en recorrer la distancia.
-    def getTime(self, distancia):
-        return distancia * 60 / self.speed
