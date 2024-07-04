@@ -34,8 +34,8 @@ class TrainingManager:
                     max_vehicles,
                     ):
         
-        self.iterations = iterations
-        self.timesteps = timesteps
+        self.iterations = int(iterations)
+        self.timesteps = int(timesteps)
         
         self.run_name = self.run_name + '_' + algorithm
 
