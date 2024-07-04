@@ -1,12 +1,10 @@
 import argparse
 from trainingManager import TrainingManager
 
-#python main.py --run_name prueba --dir_data data
 
 parser = argparse.ArgumentParser()
-trainingManager = TrainingManager()
 
-parser.add_argument("--run_name", help = "Name of the training run")
+parser.add_argument("--run_name", help = "Name of the training run. If loading a model, name of the model")
 parser.add_argument("--dir_model", help = "Directory for the models", default="models")
 parser.add_argument("--dir_log", help = "Directory for the logs", default="logs")
 parser.add_argument("--dir_data", help = "Data directory")
@@ -14,7 +12,7 @@ parser.add_argument("--iterations", help = "Number of iterations to run the trai
 parser.add_argument("--timesteps", help = "Number of timesteps to run in each iteration.", default=20480)
 parser.add_argument("--file_nodes", help = "File with node information", default=None)
 parser.add_argument("--file_vehicles", help = "File with vehicle information", default=None)
-parser.add_argument("--mode", help = "new_training or load_model", default='new_training')
+parser.add_argument("--mode", help = "new_training or generate_Routes", default='new_training')
 parser.add_argument("--algo", help = "Algorithm to be used", default='PPO')
 parser.add_argument("--render_mode", help = "Human, optional", default=None)
 parser.add_argument("--max_vehicles", help = "Maximum number of vehicles", default=None)
@@ -26,7 +24,11 @@ if args.dir_data is None:
     if (args.file_nodes is None) & (args.file_vehicles is None):
         raise ValueError("Node and vehicle information missing, please specify the data path with --dir_data or the file names with --file_nodes and --file_vehicles")
 
+trainingManager = TrainingManager(run_name = args.run_name)
+
+
 if args.mode == 'new_training':
+    #python main.py --run_name prueba --dir_data data
 
     trainingManager.newTraining(
                     dataPath = args.dir_data,
@@ -40,8 +42,19 @@ if args.mode == 'new_training':
                 )
 
 
-elif args.mode == 'load_model':
-    raise NotImplementedError("Functionality not yet implemented.")
+elif args.mode == 'generate_Routes':
+    #python main.py --run_name prueba --dir_data data --dir_model prueba\models\ --iterations 1 --mode generate_Routes
+
+    trainingManager.generateRoutes(
+                    dataPath = args.dir_data,
+                    algorithm = args.algo,
+                    nodeFile = args.file_nodes,
+                    vehicleFile = args.file_vehicles,
+                    episodes = args.iterations,
+                    render_mode = args.render_mode,
+                    max_vehicles = args.max_vehicles,
+                    dir_model = args.dir_model,
+    )
 
 else:
-    raise ValueError("Choose between new_training or load_model modes with --mode")
+    raise ValueError("Choose between new_training or generate_Routes modes with --mode")

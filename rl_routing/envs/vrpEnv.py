@@ -115,8 +115,8 @@ class VRPEnv(gym.Env):
         self.observation_space = Dict({
             "v_curr_position" : Discrete(self.nNodos), # Se almacena la posición actual
             "v_load" : Discrete(self.v_maxCapacity + 1), # SOLO se pueden usar enteros
-            "n_demands" : MultiDiscrete(np.zeros(shape=n_visible_nodes) + self.n_maxNodeCapacity+1),
-            "n_distances" : Box(low = 0, high = float('inf'), shape = (n_visible_nodes,), dtype=float),
+            "n_demands" : MultiDiscrete(np.zeros(shape=n_visible_nodes) + self.n_maxNodeCapacity+1, dtype=np.int64),
+            "n_distances" : Box(low = 0, high = float('inf'), shape = (n_visible_nodes,), dtype=np.float64),
         })
 
     # Método encargado de ejecutar las acciones seleccionadas por el agente.
@@ -139,17 +139,17 @@ class VRPEnv(gym.Env):
         
         self.v_travelTime += tiempo
 
-        self.v_posicionActual = node
+        self.v_posicionActual = int(node)
 
         if node == 0:
             self.v_travelTime = 0
             self.v_load = self.v_maxCapacity
-
+            self.solution.nuevaRuta()
 
         self.closestNodes = self.getClosestNodes()
 
-        self.n_demands = np.array(self.closestNodes['demandas'])
-        self.n_distances = np.array(self.closestNodes['distances'])
+        self.n_demands = np.array(self.closestNodes['demandas'], dtype=np.int64)
+        self.n_distances = np.array(self.closestNodes['distances'], dtype=np.float64)
 
         truncated = self.isTruncated()
         terminated = self.isDoneFunction()
@@ -174,8 +174,8 @@ class VRPEnv(gym.Env):
 
         self.closestNodes = self.getClosestNodes() # Todo se tiene que pillar de aquí.
 
-        self.n_demands = np.array(self.closestNodes['demandas'])
-        self.n_distances = np.array(self.closestNodes['distances'])
+        self.n_demands = np.array(self.closestNodes['demandas'], dtype=np.int64)
+        self.n_distances = np.array(self.closestNodes['distances'], dtype=np.float64)
 
 
         # Creamos un conjunto de rutas nuevo
@@ -185,7 +185,7 @@ class VRPEnv(gym.Env):
 
 
     # Método que obtiene las observaciones del entorno
-    def _get_obs(self):
+    def _get_obs(self): # TODO the obs returned by the `step()` method should be an int or np.int64, actual type: <class 'numpy.int32'>
         obs = dict()
         obs["v_curr_position"] = self.v_posicionActual
         obs["v_load"] = self.v_load
@@ -554,6 +554,7 @@ class VRPEnv(gym.Env):
     # Guarda el conjunto actual de grafos, independientemente de si están completos o no
     def generateReport(self, dir = 'default'):
         if self.grafoCompletado == None:
+            print("No se han podido generar rutas.")
             return
         
         # Llama a un método de guardado o a otro dependiendo de si se quieren todas las rutas en un mismo plot o no
