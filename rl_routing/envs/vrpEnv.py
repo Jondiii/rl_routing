@@ -119,8 +119,6 @@ class VRPEnv(gym.Env):
             "n_distances" : Box(low = 0, high = float('inf'), shape = (n_visible_nodes,), dtype=float),
         })
 
-        print(self.observation_space)
-
     # Método encargado de ejecutar las acciones seleccionadas por el agente.
     def step(self, action):
         self.currTotalSteps += 1 
@@ -153,7 +151,10 @@ class VRPEnv(gym.Env):
         self.n_demands = np.array(self.closestNodes['demandas'])
         self.n_distances = np.array(self.closestNodes['distances'])
 
-        return self._get_obs(), self.getReward(distancia, node), self.isDoneFunction(), self.isTruncated(), self._get_info()
+        truncated = self.isTruncated()
+        terminated = self.isDoneFunction()
+
+        return self._get_obs(), self.getReward(distancia, node, terminated, truncated), terminated, truncated, self._get_info()
 
 
     # Método para resetear el entorno. Se hace al principio del entrenamiento y tras cada episodio.
@@ -178,7 +179,7 @@ class VRPEnv(gym.Env):
 
 
         # Creamos un conjunto de rutas nuevo
-        self.solution = Solution(self.nVehiculos, self.nNodos, self.nVehiculos, self.nNodos, self.n_demands, self.n_coordenadas, self.v_speeds)
+        self.solution = Solution(self.nNodos,  self.n_coordenadas)
                
         return self._get_obs(), self._get_info()
 
@@ -206,36 +207,34 @@ class VRPEnv(gym.Env):
         return True if self.maxSteps <= self.currEpisodeSteps else False
 
 
-    def isDone(self): # TODO: se acaba cuando se llega al número máximo de vehículos o se visitan todos los nodos
+    def isDone(self):
         """
         Método que comprueba si un episodio ha finalizado. Este finalizará si una de las dos se cumple:
         - Todos los nodos se han visitado
         - Se han empleado todos los nodos disponibles
         """
-        allVisited = np.all(self.n_visited == 1)
-        if allVisited:
+        if np.all(self.nodeInfo['is_visited'] == 1):
             self.grafoCompletado = copy.deepcopy(self.solution) # Guardamos siempre el último conjunto de rutas completas, para poder dibujarlas al finalizar el entrenamiento.
-
             return True
         
-        if len(self.solution.nuevaRuta()) > self.max_vehicles:
+        if len(self.solution.rutas) > self.max_vehicles:
             return True
 
         return False
     
 
-    """
-    Método que comprueba la validez de una acción. La acción será incorrecta si:
-    - Se visita un nodo ya visitado
-    - El vehículo no se mueve.
-    - Se visita un nodo con una demanda superior a la que puede llevar el vehículo.
-    - El vehículo llega al nodo antes del inicio de la ventana de tiempo o después del cierre de esta.
-    """
     def checkAction(self, node):
+        """
+        Método que comprueba la validez de una acción. La acción será incorrecta si:
+        - Se visita un nodo ya visitado
+        - El vehículo no se mueve.
+        - Se visita un nodo con una demanda superior a la que puede llevar el vehículo.
+        - El vehículo llega al nodo antes del inicio de la ventana de tiempo o después del cierre de esta.
+        """
         if self.v_posicionActual == node:
             return False
         
-        if self.v_load - self.n_demands[node] < 0:
+        if self.v_load - self.nodeInfo.loc[node, 'demandas'] < 0:
             return False
 
         if self.n_twMin[node] > self.v_travelTime:
@@ -319,15 +318,16 @@ class VRPEnv(gym.Env):
 
 
 
-    """
-    Método que añade los parámetros iniciales del método increasingIsDone.
-    totalSteps: número total de pasos que durará el entrenamiento.
-    minNumVisited: porcentaje mínimo de nodos que debe ser visitado al inicio del entrenamiento.
-    increaseStart: porcentaje de pasos que deben haber pasado para que el porcentaje mínimo de nodos comience a aumentar.
-    increaseRate: cuánto aumentará el porcentaje mínimo de nodos a visitar.
-    everyNtimesteps: cada cuánto aumentará el porcentaje mínimo de nodos a visitar.
-    """
+
     def setIncreasingIsDone(self, totalSteps, minNumVisited = 0.5, increaseStart = 0.5, increaseRate = 0.1, everyNtimesteps = 0.1):
+        """
+        Método que añade los parámetros iniciales del método increasingIsDone.
+        totalSteps: número total de pasos que durará el entrenamiento.
+        minNumVisited: porcentaje mínimo de nodos que debe ser visitado al inicio del entrenamiento.
+        increaseStart: porcentaje de pasos que deben haber pasado para que el porcentaje mínimo de nodos comience a aumentar.
+        increaseRate: cuánto aumentará el porcentaje mínimo de nodos a visitar.
+        everyNtimesteps: cada cuánto aumentará el porcentaje mínimo de nodos a visitar.
+        """
         self.totalSteps = totalSteps
         self.increaseStart = increaseStart
         self.increaseRate = increaseRate
@@ -370,14 +370,15 @@ class VRPEnv(gym.Env):
         return False
 
 
-    """
-    Método que añade los parámetros iniciales del método decayingIsDone.
-    totalSteps: número total de pasos que durará el entrenamiento.
-    decayingStart: porcentaje de pasos que deben haber pasado para que el porcentaje mínimo de nodos comience a disminuir.
-    decayingRate: cuánto disminuirá el porcentaje mínimo de nodos a visitar.
-    everyNtimesteps: cada cuánto disminuirá el porcentaje mínimo de nodos a visitar.
-    """
+
     def setDecayingIsDone(self, totalSteps, decayingStart = 0.5, decayingRate = 0.1, everyNtimesteps = 0.05):
+        """
+        Método que añade los parámetros iniciales del método decayingIsDone.
+        totalSteps: número total de pasos que durará el entrenamiento.
+        decayingStart: porcentaje de pasos que deben haber pasado para que el porcentaje mínimo de nodos comience a disminuir.
+        decayingRate: cuánto disminuirá el porcentaje mínimo de nodos a visitar.
+        everyNtimesteps: cada cuánto disminuirá el porcentaje mínimo de nodos a visitar.
+        """
         self.totalSteps = totalSteps
         self.decayingStart = decayingStart
         self.decayingRate = decayingRate
@@ -424,20 +425,30 @@ class VRPEnv(gym.Env):
     
         
     # Método que calcula la recompensa a dar al agente.
-    def getReward(self, distancia, action):
-        # Si no se mueve ningún vehículo, penalización
+    def getReward(self, distancia, node, terminated, truncated):
+        if truncated:
+            return -100
+        
+        if terminated:
+            reward = self.getReward(distancia, node, False, False)
+
+            nodesNotVisited = sum(self.nodeInfo['is_visited'] == 0)
+
+            return reward  - nodesNotVisited * 10
+
         if distancia == 0:
             return -1
 
         # Cuando el vehículo termina su ruta recibe una recompensa inversamente proporcional a lo lleno que vaya el vehículo,
         # a más llenado más recompensa. Por defecto v_loads está a 100 (capacidad máxima), y se le va restando según se recogen pedidos.
-        if action % self.nNodos == 0:
+        if node % self.nNodos == 0:
             if self.v_load != 0:
                 return round(1/abs(self.v_load), 2) 
             return 1
 
         # La recompensa será inversamente proporcional a la distancia recorrida, a mayor distancia, menor recompensa
         return round(1/abs(distancia), 2)
+
 
 
     # Calculamos cuánto tiempo queda hasta que cierren las ventanas de tiempo.

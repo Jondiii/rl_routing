@@ -15,12 +15,12 @@ class Solution:
     """
 
     def __init__(self, nNodos, coordenadas):
-        self.rutas = [Route(self.nNodos, self.coordenadas)] # Lista que contendrá las rutas individuales del problema, en forma de grafos.
         #matplotlib.use('Agg') # Descomentar si se está trabajando en el server. Como esta clase se usa para visualizar rutas, si no se pone esto al hacer pruebas en el servidor, este peta.
         
-        self.nNodos = nNodos
-                
+        self.nNodos = nNodos  
         self.coordenadas = coordenadas[:nNodos]
+
+        self.rutas = [Route(self.nNodos, self.coordenadas)] # Lista que contendrá las rutas individuales del problema, en forma de grafos.
 
 
     # Por cada vehículo, creamos un grafo.

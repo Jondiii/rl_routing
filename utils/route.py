@@ -49,7 +49,7 @@ class Route:
         
         self.graph.edges[sourceNode, targetNode]["visited"] = True
         self.graph.nodes[targetNode]["visited"] = True
-        self.visitOrder.append[targetNode]
+        self.visitOrder.append(targetNode)
 
     # Método encargado de dibujar una ruta concreta.
     def dibujarGrafo(self, ax, edgeColor = "red"):
