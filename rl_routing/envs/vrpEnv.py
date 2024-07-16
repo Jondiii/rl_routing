@@ -227,13 +227,13 @@ class VRPEnv(gym.Env):
         if self.v_load - self.nodeInfo.loc[node, 'demandas'] < 0:
             return False
 
-        if self.n_twMin[node] > 0:
+        #if self.n_twMin[node] > 0:
             #print("MIN: {} - {}".format(self.minTW[action], self.currTime[vehiculo]))
-            return False
+        #    return False
 
-        if self.n_twMax[node] < 1000000:
+        #if self.n_twMax[node] < 1000000:
             #print("MAX: {} - {}".format(self.maxTW[action], self.currTime[vehiculo]))
-            return False
+        #    return False
 
         return True
     
