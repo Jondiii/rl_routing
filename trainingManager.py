@@ -40,12 +40,10 @@ class TrainingManager:
         self.run_name = self.run_name + '_' + algorithm
 
         if nodeFile:
-            if vehicleFile: # Sólo cambia que aquí no se usas max_vehicles y en el anterior sí
+            if vehicleFile: 
                 self.env = gym.make('rl_routing:VRPEnv-v0', dataPath = dataPath, nodeFile = nodeFile, vehicleFile = vehicleFile, run_name=self.run_name, render_mode=render_mode)
-
         else:
             self.env = gym.make('rl_routing:VRPEnv-v0', dataPath = dataPath, max_vehicles = max_vehicles, run_name=self.run_name, render_mode=render_mode)
-
 
         if algorithm == 'PPO':
             self.model = PPO("MultiInputPolicy", self.env, verbose=1, tensorboard_log=self.dir_log)
@@ -94,7 +92,6 @@ class TrainingManager:
         else:
             self.env = gym.make('rl_routing:VRPEnv-v0', dataPath = dataPath, max_vehicles = max_vehicles, run_name=self.run_name, render_mode=render_mode)
 
-
         if algorithm == 'PPO':
             self.model = PPO.load(model_path, self.env)
 
@@ -122,8 +119,6 @@ class TrainingManager:
             vec_env.close()
 
             print("--- (%s/%s) %s minutos ---" % (ep+1, episodes, round((time.time() - start_time)/60, 2)))
-
-
 
 
     """
