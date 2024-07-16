@@ -136,7 +136,7 @@ class Solution:
                 travelDistanceTotal += travelDistance
 
 
-            f.write("\n\Distancia total: " + str(round(travelDistanceTotal, 4)))
+            f.write("\n\nDistancia total: " + str(round(travelDistanceTotal, 4)))
 
             f.close()
 
