@@ -1,5 +1,5 @@
 from gymnasium.spaces import Box, Dict, Discrete, MultiDiscrete
-from sklearn.metrics.pairwise import haversine_distances
+from sklearn.metrics.pairwise import euclidean_distances
 import gymnasium as gym
 import numpy as np
 from utils.solution import Solution
@@ -439,11 +439,11 @@ class VRPEnv(gym.Env):
 
 
 
-    # Creamos las matrices de distancias y de tiempo. # TODO igual hacerlo con valhalla
+    # Creamos las matrices de distancias y de tiempo. # TODO igual hacerlo con valhalla si es un caso real
     # Estas matrices tendrán ya calculados la distancia y el tiempo que hay entre cada par de nodos, de manera que en el resto del código,
     # para saber estos datos, bastará con consultar las matrices, ahorrando cálculos.
     def createMatrixes(self):
-        self.distanceMatrix = haversine_distances(X = self.n_coordenadas*np.pi/180,
+        self.distanceMatrix = euclidean_distances(X = self.n_coordenadas*np.pi/180,
                                                   Y = self.n_coordenadas*np.pi/180)
 
 
