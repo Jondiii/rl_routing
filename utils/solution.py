@@ -1,7 +1,6 @@
 import numpy as np
 from .route import Route
 from datetime import date
-import matplotlib
 import matplotlib.pyplot as plt
 import time
 import os
@@ -29,18 +28,12 @@ class Solution:
 
 
     # Hace que un vehículo vaya desde nodo 1 a nodo 2 y marque a nodo 2 como visitado.
-    def visitEdge(self, nodo1, nodo2):
-        self.rutas[-1].visitEdge(nodo1, nodo2)
+    def visitEdge(self, nodo1, nodo2, distance):
+        self.rutas[-1].visitEdge(nodo1, nodo2, distance)
         
     
     # Guarda una representación visual de los grafos (rutas) obtenidos. # TODO sacar esto de aquí y meterlo en la clase principal. O en training maanger
-    def guardarSolucion(self, fecha = None, directorio = 'grafos', name = 'fig', extension = '.png'):
-        # Se guardan por fechas
-        if fecha is None:
-            fecha = str(date.today())
-    
-        directorio = os.path.join(directorio, fecha)
-
+    def guardarGrafoSolucion(self, directorio, name = 'fig', extension = '.png'):
         if not os.path.exists(directorio):
             os.makedirs(directorio)
 
@@ -114,6 +107,39 @@ class Solution:
         plt.savefig(nombreFigura)
 
         plt.close()
+
+
+    def guardarTextoSolucion(self, directorio, name = 'report', extension = '.txt'):
+        if not os.path.exists(directorio):
+            os.makedirs(directorio)
+
+        existentes = os.listdir(directorio)
+        numeros = [int(nombre.split('_')[-1].split('.')[0]) for nombre in existentes
+               if nombre.startswith(name + '_') and nombre.endswith(extension)]
+        siguiente_numero = str(max(numeros) + 1 if numeros else 1)
+
+        nombreDoc = os.path.join(directorio, name + '_' + siguiente_numero + extension)
+
+
+        with open(nombreDoc, 'w', encoding="utf-8") as f:
+            f.write("############")
+            f.write(str(date.today()))
+            f.write("############")
+            f.write("\n\nNúmero de vehíclos utilizados: {}".format(len(self.rutas)))
+            f.write("\n")
+
+            travelDistanceTotal = 0
+
+            for ruta in self.rutas:
+                travelDistance = ruta.travelDistance
+                f.write("\n"+str(ruta.visitOrder) + " - distance: " + str(round(travelDistance, 4)))
+                travelDistanceTotal += travelDistance
+
+
+            f.write("\n\Distancia total: " + str(round(travelDistanceTotal, 4)))
+
+            f.close()
+
 
     # TODO / WIP. La idea de esto es que una ventana vaya mostrando las rutas según estas se van creando. Es decir, que primero se muestre
     # el depot, luego en otro frame se pinte el primer nodo a visitar, luego el segundo, etc.

@@ -1,6 +1,8 @@
 import argparse
 from trainingManager import TrainingManager
 
+# SOLOMON benchmark
+#python main.py --run_name solomon_c1 --dir_data data\solomon_dataset\C1 --file_nodes C101 --file_vehicles vehicles\c1_vehicles        
 
 parser = argparse.ArgumentParser()
 
@@ -16,6 +18,7 @@ parser.add_argument("--mode", help = "new_training or generate_Routes", default=
 parser.add_argument("--algo", help = "Algorithm to be used", default='PPO')
 parser.add_argument("--render_mode", help = "Human, optional", default=None)
 parser.add_argument("--max_vehicles", help = "Maximum number of vehicles", default=None)
+parser.add_argument("--name_model", help = "Name of the model", default=None)
 
 # Read arguments from command line
 args = parser.parse_args()
@@ -54,6 +57,7 @@ elif args.mode == 'generate_Routes':
                     render_mode = args.render_mode,
                     max_vehicles = args.max_vehicles,
                     dir_model = args.dir_model,
+                    name_model = args.name_model,
     )
 
 else:

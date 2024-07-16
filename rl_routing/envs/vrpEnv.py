@@ -129,7 +129,7 @@ class VRPEnv(gym.Env):
 
         distancia = self.getDistanceTime(action)
         
-        self.visitEdge(node)
+        self.visitEdge(node, distancia)
         
         self.v_posicionActual = int(node)
 
@@ -296,14 +296,14 @@ class VRPEnv(gym.Env):
         return distancia
 
 
-    def visitEdge(self, node):
+    def visitEdge(self, node, distancia):
         """
         Marca el nodo correspondiente como visitado y se actualiza el Grafo.
         """
 
         self.nodeInfo.loc[node, 'is_visited'] = 1
         
-        self.solution.visitEdge(self.v_posicionActual, node)
+        self.solution.visitEdge(self.v_posicionActual, node, distancia)
 
 
 
@@ -489,6 +489,7 @@ class VRPEnv(gym.Env):
         self.n_twMin = self.dataGen.nodeInfo["minTW"].to_numpy()
         self.n_twMax = self.dataGen.nodeInfo["maxTW"].to_numpy()
 
+    #TODO creo que esto no se usa
     def renderRoutes(self, dir = 'default'):      
         if self.grafoCompletado == None:
             return
@@ -498,7 +499,9 @@ class VRPEnv(gym.Env):
             self.grafoCompletado.guardarGrafosSinglePlot(dir)
 
         else:
-            self.grafoCompletado.guardarSolucion(dir)
+            self.grafoCompletado.guardarGrafoSolucion(dir)
+
+        self.grafoCompletado.guardarTextoSolucion(dir)
 
         #self.crearReport(self.ordenVisitasCompletas, directorio = dir)
 
@@ -526,11 +529,11 @@ class VRPEnv(gym.Env):
         if self.graphSavePath:
             self.generateReport(self.graphSavePath)
         else:
-            self.generateReport('reporting')
+            self.generateReport(self.run_name)
 
 
     # Guarda el conjunto actual de grafos, independientemente de si están completos o no
-    def generateReport(self, dir = 'default'):
+    def generateReport(self, dir):
         if self.grafoCompletado == None:
             print("No se han podido generar rutas.")
             return
@@ -540,44 +543,6 @@ class VRPEnv(gym.Env):
             self.grafoCompletado.guardarGrafosSinglePlot(directorio = dir)
 
         else:
-            self.grafoCompletado.guardarSolucion(directorio = dir)
+            self.grafoCompletado.guardarGrafoSolucion(directorio = dir)
 
-        #self.crearReport(self.ordenVisitasCompletas, directorio = dir)
-
-
-    # Método que crea un pequeño report sobre las rutas obtenidas.
-    # Simplemente crea un fichero con las rutas creadas mostrando el orden de las visitas, la duración de cada ruta y la duración
-    # total de todas las rutas.
-    # TODO esto que lo haga el mismo método que guarde la solución
-    def crearReport(self, v_ordenVisitas, travelTime, fecha = None, directorio = 'reports', name = 'report', extension = '.txt'):
-        if fecha is None:
-            fecha = str(date.today())
-
-        directorio = os.path.join(directorio, fecha)
-
-        if not os.path.exists(directorio):
-            os.makedirs(directorio)
-
-        existentes = os.listdir(directorio)
-        numeros = [int(nombre.split('_')[-1].split('.')[0]) for nombre in existentes
-               if nombre.startswith(name + '_') and nombre.endswith(extension)]
-        siguiente_numero = str(max(numeros) + 1 if numeros else 1)
-
-        nombreDoc = os.path.join(directorio, name + '_' + siguiente_numero + extension)
-
-        tiempoTotal = 0
-
-        with open(nombreDoc, 'w', encoding="utf-8") as f:
-            f.write("############")
-            f.write(str(date.today()))
-            f.write("############")
-            f.write("\n\nNúmero de vehíclos utilizados: {}".format(self.nVehiculos))
-            f.write("\n")
-
-            for ruta, tiempo in zip(v_ordenVisitas, travelTime):
-                tiempoTotal += tiempo
-                f.write("\n"+str(ruta) + " - t: " + str(round(tiempo, 2)) + " min")
-
-            f.write("\n\nTiempo total: " + str(round(tiempoTotal, 2)) + " min")
-
-            f.close()
+        self.grafoCompletado.guardarTextoSolucion(dir)

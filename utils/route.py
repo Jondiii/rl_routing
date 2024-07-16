@@ -9,6 +9,7 @@ class Route:
     def __init__(self, nNodos, coordenadas) -> None:
         self.nNodos = nNodos
         self.visitOrder = [0]
+        self.travelDistance = 0
 
         # Creamos un grafo completo (es decir, un grafo donde todos los nodos están conectados entre sí)
         self.graph = nx.complete_graph(nNodos)
@@ -43,13 +44,15 @@ class Route:
         self.offset = np.array([0, 0.045])
 
     # Método que hace que un nodo sea visitado, devolviendo información sobre la distancia recorrida y el tiempo empleado.
-    def visitEdge(self, sourceNode, targetNode):
+    def visitEdge(self, sourceNode, targetNode, distance):
         if sourceNode == targetNode:
             return
         
         self.graph.edges[sourceNode, targetNode]["visited"] = True
         self.graph.nodes[targetNode]["visited"] = True
         self.visitOrder.append(targetNode)
+
+        self.travelDistance += distance
 
     # Método encargado de dibujar una ruta concreta.
     def dibujarGrafo(self, ax, edgeColor = "red"):
