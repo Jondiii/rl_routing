@@ -24,7 +24,6 @@ class VRPEnv(gym.Env):
 
     nNodos = 0
     nVehiculos = 0
-    v_travelTime = None
 
     closestNodes = None
 
@@ -37,8 +36,6 @@ class VRPEnv(gym.Env):
     
     v_load = None
     v_maxCapacity = None
-    v_speeds = None
-
 
     
     def __init__(self, dataPath = None, max_vehicles = None, nodeFile = 'nodes', vehicleFile = 'vehicles', maxSteps = np.nan,
@@ -60,8 +57,6 @@ class VRPEnv(gym.Env):
         self.currEpisodeSteps = 0
         self.run_name = run_name
         self.graphSavePath = graphSavePath
-
-        self.v_travelTime = 0
 
         self.isDoneFunction = self.isDone
 
@@ -100,7 +95,6 @@ class VRPEnv(gym.Env):
         # Características de los vehículos
         self.v_load = self.vehicleInfo["maxCapacity"].to_numpy()
         self.v_maxCapacity = self.v_load.max()
-        self.v_speeds = self.vehicleInfo["speed"].to_numpy()
 
         # Ventanas de tiempo
         self.n_twMin = self.nodeInfo["minTW"].to_numpy()
@@ -133,16 +127,13 @@ class VRPEnv(gym.Env):
         # Añadimos la demanda del nodo a la carga del vehículo
         self.v_load-= self.n_demands[action]
 
-        distancia, tiempo = self.getDistanceTime(action)
+        distancia = self.getDistanceTime(action)
         
         self.visitEdge(node)
         
-        self.v_travelTime += tiempo
-
         self.v_posicionActual = int(node)
 
         if node == 0:
-            self.v_travelTime = 0
             self.v_load = self.v_maxCapacity
             self.solution.nuevaRuta()
 
@@ -166,7 +157,6 @@ class VRPEnv(gym.Env):
         
         # Reiniciamos el vehículo
         self.v_posicionActual = 0
-        self.v_travelTime = 0
         self.v_load = self.v_maxCapacity
         self.v_ordenVisitas = [0]
 
@@ -237,11 +227,11 @@ class VRPEnv(gym.Env):
         if self.v_load - self.nodeInfo.loc[node, 'demandas'] < 0:
             return False
 
-        if self.n_twMin[node] > self.v_travelTime:
+        if self.n_twMin[node] > 0:
             #print("MIN: {} - {}".format(self.minTW[action], self.currTime[vehiculo]))
             return False
 
-        if self.n_twMax[node] < self.v_travelTime:
+        if self.n_twMax[node] < 1000000:
             #print("MAX: {} - {}".format(self.maxTW[action], self.currTime[vehiculo]))
             return False
 
@@ -302,9 +292,8 @@ class VRPEnv(gym.Env):
 
     def getDistanceTime(self, action):
         distancia = self.n_distances[action]
-        tiempo = distancia * self.v_speeds[0] # TODO
 
-        return distancia, tiempo
+        return distancia
 
 
     def visitEdge(self, node):
@@ -357,7 +346,6 @@ class VRPEnv(gym.Env):
             if porcentajeVisitados >= self.minimumVisited:
                 self.grafoCompletado = copy.deepcopy(self.solution)
                 self.ordenVisitasCompletas = copy.deepcopy(self.v_ordenVisitas)
-                self.tiempoFinal = copy.deepcopy(self.v_travelTime)
                 return True
         
         # Si no están todos en el depot, se marca el depósito como no visitado para que el/los vehículos que queden puedan regresar.
@@ -410,7 +398,6 @@ class VRPEnv(gym.Env):
             if porcentajeVisitados >= self.minimumVisited:
                 self.grafoCompletado = copy.deepcopy(self.solution)
                 self.ordenVisitasCompletas = copy.deepcopy(self.v_ordenVisitas)
-                self.tiempoFinal = copy.deepcopy(self.v_travelTime)
                 return True
         
         # Si no lo están, marcamos el depot como no visitado 
@@ -450,15 +437,6 @@ class VRPEnv(gym.Env):
         return round(1/abs(distancia), 2)
 
 
-
-    # Calculamos cuánto tiempo queda hasta que cierren las ventanas de tiempo.
-    # Current time tiene shape (nVehiculos,), mientras que el repeat devuelve shape (nNodos, nvehiculos)
-    # No se puede hacer broadcast de esos rangos, pero con np.array([self.currTime]).T tenemos que curr time tiene shape (nVehiculos,1)
-    # y con eso sí se puede hacer la resta que queremos
-    def getTimeLeftTWClose(self):
-        twClose = np.repeat([self.n_twMax], repeats=self.nVehiculos, axis=0) - np.array([self.v_travelTime]).T
-
-        return twClose
 
 
     # Creamos las matrices de distancias y de tiempo. # TODO igual hacerlo con valhalla
@@ -522,7 +500,7 @@ class VRPEnv(gym.Env):
         else:
             self.grafoCompletado.guardarSolucion(dir)
 
-        #self.crearReport(self.ordenVisitasCompletas, self.tiempoFinal, directorio = dir)
+        #self.crearReport(self.ordenVisitasCompletas, directorio = dir)
 
 
     # Crea y guarda una imagen y un report el último conjunto de grafos completado 
@@ -564,7 +542,7 @@ class VRPEnv(gym.Env):
         else:
             self.grafoCompletado.guardarSolucion(directorio = dir)
 
-        #self.crearReport(self.ordenVisitasCompletas, self.tiempoFinal, directorio = dir)
+        #self.crearReport(self.ordenVisitasCompletas, directorio = dir)
 
 
     # Método que crea un pequeño report sobre las rutas obtenidas.
