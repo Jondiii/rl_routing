@@ -145,6 +145,9 @@ class VRPEnv(gym.Env):
         truncated = self.isTruncated()
         terminated = self.isDoneFunction()
 
+        if terminated:
+            self.visitEdge(0, self.getDistanceTime(0))
+
         return self._get_obs(), self.getReward(distancia, node, terminated, truncated), terminated, truncated, self._get_info()
 
 
@@ -443,9 +446,7 @@ class VRPEnv(gym.Env):
     # Estas matrices tendrán ya calculados la distancia y el tiempo que hay entre cada par de nodos, de manera que en el resto del código,
     # para saber estos datos, bastará con consultar las matrices, ahorrando cálculos.
     def createMatrixes(self):
-        self.distanceMatrix = euclidean_distances(X = self.n_coordenadas*np.pi/180,
-                                                  Y = self.n_coordenadas*np.pi/180)
-
+        self.distanceMatrix = euclidean_distances(X = np.array(self.n_coordenadas))
 
     # Se crean y añaden ventanas del tiempo al problema en función de los valores especificados.
     def crearTW(self, n_twMin, n_twMax):
