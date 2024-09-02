@@ -1,6 +1,7 @@
 envs.txt
 temp/
-data/
+data/nodes.csv
+data/vehicles.csv
 logs/
 models/
 
