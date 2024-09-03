@@ -2,6 +2,7 @@ from tensorboard.backend.event_processing.event_accumulator import EventAccumula
 from stable_baselines3 import PPO, A2C, DQN
 
 import gymnasium as gym
+import pandas as pd
 import os
 import time
 
@@ -123,24 +124,31 @@ class TrainingManager:
     def saveMetrics(self, logdir, filePath, tags: list):
         event_acc = EventAccumulator(logdir)
         event_acc.Reload()  
- 
+
         metrics = {tag: [] for tag in tags}
         steps = []
 
-        # Iterar sobre los eventos y almacenar las métricas
-        for tag in tags:
-            events = event_acc.Scalars(tag)
-            for event in events:
-                metrics[tag].append(event.value)
-                steps.append(event.step)
-
-
         df = pd.read_csv(filePath, sep=';')
 
-        df.loc[df['run_name'] == self.run_name, 'mean_ep_length'] = metrics['rollout/ep_len_mean'][-1]
-        df.loc[df['run_name'] == self.run_name, 'mean_reward'] = metrics['rollout/ep_rew_mean'][-1]
-        
-        df.to_csv(filePath, index=False, sep=';')
+        try:
+            # Iterar sobre los eventos y almacenar las métricas
+            for tag in tags:
+                events = event_acc.Scalars(tag)
+                for event in events:
+                    metrics[tag].append(event.value)
+                    steps.append(event.step)
+
+
+
+            df.loc[df['run_name'] == self.run_name, 'mean_ep_length'] = metrics['rollout/ep_len_mean'][-1]
+            df.loc[df['run_name'] == self.run_name, 'mean_reward'] = metrics['rollout/ep_rew_mean'][-1]
+            
+            df.to_csv(filePath, index=False, sep=';')
+
+        except:
+            df.loc[df['run_name'] == self.run_name, 'mean_ep_length'] = -999999999
+            df.to_csv(filePath, index=False, sep=';')
+
 
 
     """
