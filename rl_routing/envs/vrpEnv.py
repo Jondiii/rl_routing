@@ -42,7 +42,7 @@ class VRPEnv(gym.Env):
 
     
     def __init__(self, dataPath = None, nodeFile = 'nodes', vehicleFile = 'vehicles', maxSteps = None,
-                seed = None,  multiTrip = False, singlePlot = False, 
+                seed = None,  multiTrip = False, singlePlot = False, max_vehicles = None,
                 run_name = None, graphSavePath = None, render_mode = None):
 
         super(VRPEnv, self).__init__()
@@ -118,7 +118,7 @@ class VRPEnv(gym.Env):
     def step(self, action):
         self.currTotalSteps += 1 
         self.currEpisodeSteps += 1
-        
+
         # Comprobamos que la acción sea sobre un nodo que forme parte del problema (relevante cuando nNodos != nMaxNodos)
         if action >= self.nNodos * self.nVehiculos:
             return self._get_obs(), 0, False, self.isTruncated(), dict(info = "Acción rechazada por actuar sobre un nodo no disponible.", accion = action, nNodos = self.nNodos)
@@ -126,6 +126,8 @@ class VRPEnv(gym.Env):
         vehiculo = action // self.nNodos
 
         node = action % self.nNodos
+
+        #print("action: " + str(action) + "v: " + str(vehiculo) + "-- n: " + str(node))
 
         if not self.checkAction(node, vehiculo):
             return self._get_obs(), 0, False, self.isTruncated(), dict()
@@ -157,7 +159,7 @@ class VRPEnv(gym.Env):
 
         terminated = self.isDoneFunction()
 
-        
+
         return self._get_obs(), reward, terminated, self.isTruncated(), self._get_info()
 
 
@@ -223,13 +225,13 @@ class VRPEnv(gym.Env):
         if self.v_loads[vehiculo] - self.n_demands[action] < 0:
             return False
 
-        if self.n_twMin[action] > self.travelTime[vehiculo]:
+        #if self.n_twMin[action] > self.travelTime[vehiculo]:
             #print("MIN: {} - {}".format(self.minTW[action], self.currTime[vehiculo]))
-            return False
+            #return False
 
-        if self.n_twMax[action] < self.travelTime[vehiculo]:
+        #if self.n_twMax[action] < self.travelTime[vehiculo]:
             #print("MAX: {} - {}".format(self.maxTW[action], self.currTime[vehiculo]))
-            return False
+           #return False
 
         return True
     
