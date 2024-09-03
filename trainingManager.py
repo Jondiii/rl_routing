@@ -1,10 +1,8 @@
+from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from stable_baselines3 import PPO, A2C, DQN
-from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.vec_env import VecExtractDictObs, VecMonitor, DummyVecEnv, VecEnvWrapper
-
-from rl_routing.envs.vrpEnv import VRPEnv
 
 import gymnasium as gym
+import pandas as pd
 import os
 import time
 
@@ -37,7 +35,7 @@ class TrainingManager:
         self.iterations = int(iterations)
         self.timesteps = int(timesteps)
         
-        self.run_name = self.run_name + '_' + algorithm
+        self.run_name = self.run_name# + '_' + algorithm
 
         if nodeFile:
             if vehicleFile: 
@@ -57,6 +55,7 @@ class TrainingManager:
         else:
             raise ModuleNotFoundError("Reiforcement Learning algorithm not found")
 
+
         start_time = time.time()
 
         for _ in range(1, int(self.iterations)+1):
@@ -65,7 +64,11 @@ class TrainingManager:
 
         print("--- %s minutos ---" % round((time.time() - start_time)/60, 2))
 
+        self.saveMetrics(self.dir_log+'/'+self.run_name+'_0', 'results_5Actions.csv', ['rollout/ep_len_mean', 'rollout/ep_rew_mean'])
+
         self.env.close()
+
+
 
 
     def generateRoutes(self,
@@ -119,6 +122,29 @@ class TrainingManager:
             vec_env.close()
 
             print("--- (%s/%s) %s minutos ---" % (ep+1, episodes, round((time.time() - start_time)/60, 2)))
+
+
+    def saveMetrics(self, logdir, filePath, tags: list):
+        event_acc = EventAccumulator(logdir)
+        event_acc.Reload()  
+ 
+        metrics = {tag: [] for tag in tags}
+        steps = []
+
+        # Iterar sobre los eventos y almacenar las métricas
+        for tag in tags:
+            events = event_acc.Scalars(tag)
+            for event in events:
+                metrics[tag].append(event.value)
+                steps.append(event.step)
+
+
+        df = pd.read_csv(filePath, sep=';')
+
+        df.loc[df['run_name'] == self.run_name, 'mean_ep_length'] = metrics['rollout/ep_len_mean'][-1]
+        df.loc[df['run_name'] == self.run_name, 'mean_reward'] = metrics['rollout/ep_rew_mean'][-1]
+        
+        df.to_csv(filePath, index=False, sep=';')
 
 
     """
