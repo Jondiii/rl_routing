@@ -131,22 +131,21 @@ class TrainingManager:
         df = pd.read_csv(filePath, sep=';')
 
         try:
-            # Iterar sobre los eventos y almacenar las métricas
             for tag in tags:
                 events = event_acc.Scalars(tag)
                 for event in events:
                     metrics[tag].append(event.value)
                     steps.append(event.step)
 
-
-
             df.loc[df['run_name'] == self.run_name, 'mean_ep_length'] = metrics['rollout/ep_len_mean'][-1]
             df.loc[df['run_name'] == self.run_name, 'mean_reward'] = metrics['rollout/ep_rew_mean'][-1]
             
             df.to_csv(filePath, index=False, sep=';')
 
-        except:
+        except Exception as e:
             df.loc[df['run_name'] == self.run_name, 'mean_ep_length'] = -999999999
+            df.loc[df['run_name'] == self.run_name, 'mean_reward'] = -999999999
+
             df.to_csv(filePath, index=False, sep=';')
 
 

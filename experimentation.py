@@ -13,10 +13,8 @@ for experimento in listaExperimentos:
         '--dir_data', 'data\\solomon_dataset\\C1', 
         '--file_nodes', 'C101', 
         '--file_vehicles', 'vehicles\\c1_vehicles',
-        '--iterations', '3',
-        '--timesteps', '2048'
+        '--iterations', '100',
+        '--timesteps', '102400'
     ]
 
     _ = subprocess.run(command, capture_output=True, text=True)
-
-    break
