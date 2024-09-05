@@ -13,8 +13,8 @@ for experimento in listaExperimentos:
         '--dir_data', 'data/solomon_dataset/C1',  # si no encuentra el path en local probar con \\
         '--file_nodes', 'C101', 
         '--file_vehicles', 'vehicles/c1_vehicles',
-        '--iterations', '1',
-        '--timesteps', '2048'
+        '--iterations', '100',
+        '--timesteps', '102400'
     ]
 
     _ = subprocess.run(command, capture_output=True, text=True)
