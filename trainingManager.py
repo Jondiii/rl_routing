@@ -63,7 +63,7 @@ class TrainingManager:
 
         print("--- %s minutos ---" % round((time.time() - start_time)/60, 2))
 
-        self.saveMetrics(self.dir_log+'/'+self.run_name+'_0', 'results_infiniteActions.csv', ['rollout/ep_len_mean', 'rollout/ep_rew_mean'])
+        self.saveMetrics(self.dir_log+'/'+self.run_name+'_0', 'results_infiniteActions.csv', round((time.time() - start_time)/60, 2), ['rollout/ep_len_mean', 'rollout/ep_rew_mean'])
 
         self.env.close()
 
@@ -121,7 +121,7 @@ class TrainingManager:
             print("--- (%s/%s) %s minutos ---" % (ep+1, episodes, round((time.time() - start_time)/60, 2)))
 
 
-    def saveMetrics(self, logdir, filePath, tags: list):
+    def saveMetrics(self, logdir, filePath, time, tags: list):
         event_acc = EventAccumulator(logdir)
         event_acc.Reload()  
 
@@ -139,7 +139,8 @@ class TrainingManager:
 
             df.loc[df['run_name'] == self.run_name, 'mean_ep_length'] = metrics['rollout/ep_len_mean'][-1]
             df.loc[df['run_name'] == self.run_name, 'mean_reward'] = metrics['rollout/ep_rew_mean'][-1]
-            
+            df.loc[df['run_name'] == self.run_name, 'training_time'] = "--- %s minutos ---" %time
+
             df.to_csv(filePath, index=False, sep=';')
 
         except Exception as e:
