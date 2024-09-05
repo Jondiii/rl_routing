@@ -17,4 +17,4 @@ for experimento in listaExperimentos:
         '--timesteps', '102400'
     ]
 
-    print(subprocess.run(command, capture_output=True, text=True))
+    _ = subprocess.run(command, capture_output=True, text=True)
