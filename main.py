@@ -2,7 +2,7 @@ import argparse
 from trainingManager import TrainingManager
 
 # SOLOMON benchmark TRAIN
-# python main.py --run_name solomon_c1 --dir_data data\solomon_dataset\C1 --file_nodes C101 --file_vehicles vehicles\c1_vehicles     
+# python main.py --run_name solomon_c1 --dir_data data\solomon_dataset\C1 --file_nodes C101 --file_vehicles vehicles\c1_vehicles --iterations 1 --timesteps 2048   
 
 # SOLOMON benchmark obtain solution
 # python main.py --run_name solomon_c1_p1 --dir_data data\solomon_dataset\C1 --file_nodes C101 --file_vehicles vehicles\c1_vehicles --dir_model solomon_c1\models\ --iterations 1 --mode generate_Routes --name_model solomon_c1_PPO
