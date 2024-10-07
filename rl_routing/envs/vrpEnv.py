@@ -144,10 +144,7 @@ class VRPEnv(gym.Env):
 
         truncated = self.isTruncated()
         terminated = self.isDoneFunction()
-
-        if terminated:
-            self.visitEdge(0, self.getDistanceTime(0))
-
+                    
         return self._get_obs(), self.getReward(distancia, node, terminated, truncated), terminated, truncated, self._get_info()
 
 
@@ -204,9 +201,10 @@ class VRPEnv(gym.Env):
         """
         Método que comprueba si un episodio ha finalizado. Este finalizará si una de las dos se cumple:
         - Todos los nodos se han visitado
-        - Se han empleado todos los nodos disponibles
+        - Se han empleado todos los vehículos disponibles
         """
         if np.all(self.nodeInfo['is_visited'] == 1):
+            self.visitEdge(0, self.getDistanceTime(0))
             self.grafoCompletado = copy.deepcopy(self.solution) # Guardamos siempre el último conjunto de rutas completas, para poder dibujarlas al finalizar el entrenamiento.
             return True
         
@@ -538,7 +536,8 @@ class VRPEnv(gym.Env):
         if self.grafoCompletado == None:
             print("No se han podido generar rutas.")
             return
-        
+
+
         # Llama a un método de guardado o a otro dependiendo de si se quieren todas las rutas en un mismo plot o no
         if self.singlePlot:
             self.grafoCompletado.guardarGrafosSinglePlot(directorio = dir)
