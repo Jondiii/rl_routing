@@ -144,7 +144,7 @@ class VRPEnv(gym.Env):
 
         truncated = self.isTruncated()
         terminated = self.isDoneFunction()
-                    
+
         return self._get_obs(), self.getReward(distancia, node, terminated, truncated), terminated, truncated, self._get_info()
 
 
@@ -154,7 +154,7 @@ class VRPEnv(gym.Env):
 
         # Marcamos los nodos como no visitados
         self.nodeInfo['is_visited'] = 0
-        
+
         # Reiniciamos el vehículo
         self.v_posicionActual = 0
         self.v_load = self.v_maxCapacity
@@ -228,13 +228,13 @@ class VRPEnv(gym.Env):
         if self.v_load - self.nodeInfo.loc[node, 'demandas'] < 0:
             return False
 
-        #if self.n_twMin[node] > 0:
+        if self.n_twMin[node] > self.solution.rutas[-1].travelDistance:# el tiempo de ruta se reinicia con cada ruta. hay que hacer que se tenga un tiempo global y que sea eso lo que se comprueba
             #print("MIN: {} - {}".format(self.minTW[action], self.currTime[vehiculo]))
-        #    return False
+            return False
 
-        #if self.n_twMax[node] < 1000000:
+        if self.n_twMax[node] < self.solution.rutas[-1].travelDistance:
             #print("MAX: {} - {}".format(self.maxTW[action], self.currTime[vehiculo]))
-        #    return False
+            return False
 
         return True
     
