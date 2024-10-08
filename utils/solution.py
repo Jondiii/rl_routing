@@ -28,8 +28,8 @@ class Solution:
 
 
     # Hace que un vehículo vaya desde nodo 1 a nodo 2 y marque a nodo 2 como visitado.
-    def visitEdge(self, nodo1, nodo2, distance):
-        self.rutas[-1].visitEdge(nodo1, nodo2, distance)
+    def visitEdge(self, nodo1, nodo2, distance, serviceTime):
+        self.rutas[-1].visitEdge(nodo1, nodo2, distance, serviceTime)
         
     
     # Guarda una representación visual de los grafos (rutas) obtenidos. # TODO sacar esto de aquí y meterlo en la clase principal. O en training maanger

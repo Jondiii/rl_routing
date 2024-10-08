@@ -44,7 +44,7 @@ class Route:
         self.offset = np.array([0, 0.045])
 
     # Método que hace que un nodo sea visitado, devolviendo información sobre la distancia recorrida y el tiempo empleado.
-    def visitEdge(self, sourceNode, targetNode, distance):
+    def visitEdge(self, sourceNode, targetNode, distance, serviceTime):
         if sourceNode == targetNode:
             return
         
@@ -52,7 +52,7 @@ class Route:
         self.graph.nodes[targetNode]["visited"] = True
         self.visitOrder.append(targetNode)
 
-        self.travelDistance += distance
+        self.travelDistance += distance + serviceTime
 
     # Método encargado de dibujar una ruta concreta.
     def dibujarGrafo(self, ax, edgeColor = "red"):

@@ -117,6 +117,8 @@ class DataReader:
         nodeData['minTW'] = self.nodeInfo["minTW"]
         nodeData['maxTW'] = self.nodeInfo["maxTW"]
 
+        nodeData['service_time'] = self.nodeInfo["service_time"]
+
         return nodeData
 
 

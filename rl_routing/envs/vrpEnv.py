@@ -96,9 +96,10 @@ class VRPEnv(gym.Env):
         self.v_load = self.vehicleInfo["maxCapacity"].to_numpy()
         self.v_maxCapacity = self.v_load.max()
 
-        # Ventanas de tiempo
+        # Ventanas de tiempo y service time
         self.n_twMin = self.nodeInfo["minTW"].to_numpy()
         self.n_twMax = self.nodeInfo["maxTW"].to_numpy()
+        self.n_serviceTime = self.nodeInfo["service_time"].to_numpy()
 
 
     # Método que creará el espacio de acciones y el de observaciones.
@@ -120,15 +121,14 @@ class VRPEnv(gym.Env):
         
         # Calcular el nodo a visitar
         node = self.closestNodes['index'][action]
+        distancia = self.getDistanceTime(action)
 
-        if not self.checkAction(node):
+        if not self.checkAction(node, distancia):
             return self._get_obs(), -1, False, self.isTruncated(), dict()
 
         # Añadimos la demanda del nodo a la carga del vehículo
         self.v_load-= self.n_demands[action]
 
-        distancia = self.getDistanceTime(action)
-        
         self.visitEdge(node, distancia)
         
         self.v_posicionActual = int(node)
@@ -214,7 +214,7 @@ class VRPEnv(gym.Env):
         return False
     
 
-    def checkAction(self, node):
+    def checkAction(self, node, distancia):
         """
         Método que comprueba la validez de una acción. La acción será incorrecta si:
         - Se visita un nodo ya visitado
@@ -228,12 +228,12 @@ class VRPEnv(gym.Env):
         if self.v_load - self.nodeInfo.loc[node, 'demandas'] < 0:
             return False
 
-        if self.n_twMin[node] > self.solution.rutas[-1].travelDistance:# el tiempo de ruta se reinicia con cada ruta. hay que hacer que se tenga un tiempo global y que sea eso lo que se comprueba
-            #print("MIN: {} - {}".format(self.minTW[action], self.currTime[vehiculo]))
+        if self.n_twMin[node] > (self.solution.rutas[-1].travelDistance + distancia + self.n_serviceTime[node]):# el tiempo de ruta se reinicia con cada ruta. hay que hacer que se tenga un tiempo global y que sea eso lo que se comprueba
+            print("MIN: {} - {}".format(self.n_twMin[node], self.solution.rutas[-1].travelDistance + distancia + self.n_serviceTime[node]))
             return False
 
-        if self.n_twMax[node] < self.solution.rutas[-1].travelDistance:
-            #print("MAX: {} - {}".format(self.maxTW[action], self.currTime[vehiculo]))
+        if self.n_twMax[node] < (self.solution.rutas[-1].travelDistance + distancia + self.n_serviceTime[node]):
+            print("MAX: {} - {}".format(self.n_twMax[node], self.solution.rutas[-1].travelDistance + distancia + self.n_serviceTime[node]))
             return False
 
         return True
@@ -304,7 +304,7 @@ class VRPEnv(gym.Env):
 
         self.nodeInfo.loc[node, 'is_visited'] = 1
         
-        self.solution.visitEdge(self.v_posicionActual, node, distancia)
+        self.solution.visitEdge(self.v_posicionActual, node, distancia, self.n_serviceTime[node])
 
 
 
