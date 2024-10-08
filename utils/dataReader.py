@@ -171,6 +171,25 @@ if __name__ == "__main__":
     
     for root, dirs, files in os.walk(base_dir):
         for file in files:
-            reader.make_node_csv_readable(os.path.join(root, file),'XCOORD.','YCOORD.','DEMAND','READY TIME','DUE DATE')
+            if file.endswith(".csv") and "vehicles" not in file:
+                file_path = os.path.join(root, file)
 
-    
+                # Leer el CSV
+                df = pd.read_csv(file_path)
+
+                # Determinar el valor para la columna service_time
+                if file.startswith('R'):
+                    service_time_value = 10
+                else:
+                    service_time_value = 90
+
+                # Añadir la columna service_time con el valor adecuado
+                df['service_time'] = service_time_value
+
+                # Asignar el valor 0 en la primera fila de la columna service_time
+                df.at[0, 'service_time'] = 0
+
+                # Guardar el CSV con las modificaciones
+                df.to_csv(file_path, index=False)
+
+                print(f"Modificado {file_path}")
