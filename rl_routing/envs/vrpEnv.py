@@ -33,13 +33,14 @@ class VRPEnv(gym.Env):
     n_maxNodeCapacity = None
     n_twMin = None
     n_twMax = None
-    
+
     v_load = None
     v_maxCapacity = None
 
     
     def __init__(self, dataPath = None, max_vehicles = None, nodeFile = 'nodes', vehicleFile = 'vehicles', maxSteps = np.nan,
-                seed = None, singlePlot = False, run_name = None, graphSavePath = None, render_mode = None):
+                seed = None, singlePlot = False, run_name = None, graphSavePath = None, render_mode = None,
+                n_visible_nodes = 5):
 
         super(VRPEnv, self).__init__()
 
@@ -48,6 +49,7 @@ class VRPEnv(gym.Env):
             self.seed = seed
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
+        assert n_visible_nodes >= 3
 
         self.render_mode = render_mode
 
@@ -57,6 +59,7 @@ class VRPEnv(gym.Env):
         self.currEpisodeSteps = 0
         self.run_name = run_name
         self.graphSavePath = graphSavePath
+        self.n_visible_nodes = n_visible_nodes # Contando el depot pero no las 2 acciones extra
 
         self.isDoneFunction = self.isDone
 
@@ -104,14 +107,13 @@ class VRPEnv(gym.Env):
 
     # Método que creará el espacio de acciones y el de observaciones.
     def createSpaces(self):
-        n_visible_nodes = 5
-        self.action_space = Discrete(n_visible_nodes) # 0-4
+        self.action_space = Discrete(self.n_visible_nodes) # Nodos (sumando depot) + 2 acciones extra
 
         self.observation_space = Dict({
             "v_curr_position" : Discrete(self.nNodos), # Se almacena la posición actual
             "v_load" : Discrete(self.v_maxCapacity + 1), # SOLO se pueden usar enteros
-            "n_demands" : MultiDiscrete(np.zeros(shape=n_visible_nodes) + self.n_maxNodeCapacity+1, dtype=np.int64),
-            "n_distances" : Box(low = 0, high = float('inf'), shape = (n_visible_nodes,), dtype=np.float64),
+            "n_demands" : MultiDiscrete(np.zeros(shape=self.n_visible_nodes) + self.n_maxNodeCapacity+1, dtype=np.int64),
+            "n_distances" : Box(low = 0, high = float('inf'), shape = (self.n_visible_nodes,), dtype=np.float64),
         })
 
     # Método encargado de ejecutar las acciones seleccionadas por el agente.
@@ -137,7 +139,7 @@ class VRPEnv(gym.Env):
             self.v_load = self.v_maxCapacity
             self.solution.nuevaRuta()
 
-        self.closestNodes = self.getClosestNodes()
+        self.closestNodes = self.getClosestNodes(self.n_visible_nodes)
 
         self.n_demands = np.array(self.closestNodes['demandas'], dtype=np.int64)
         self.n_distances = np.array(self.closestNodes['distances'], dtype=np.float64)
@@ -162,7 +164,7 @@ class VRPEnv(gym.Env):
 
         self.currEpisodeSteps = 0
 
-        self.closestNodes = self.getClosestNodes() # Todo se tiene que pillar de aquí.
+        self.closestNodes = self.getClosestNodes(self.n_visible_nodes) # Todo se tiene que pillar de aquí.
 
         self.n_demands = np.array(self.closestNodes['demandas'], dtype=np.int64)
         self.n_distances = np.array(self.closestNodes['distances'], dtype=np.float64)
@@ -228,18 +230,18 @@ class VRPEnv(gym.Env):
         if self.v_load - self.nodeInfo.loc[node, 'demandas'] < 0:
             return False
 
-        if self.n_twMin[node] > (self.solution.rutas[-1].travelDistance + distancia + self.n_serviceTime[node]):# el tiempo de ruta se reinicia con cada ruta. hay que hacer que se tenga un tiempo global y que sea eso lo que se comprueba
-            print("MIN: {} - {}".format(self.n_twMin[node], self.solution.rutas[-1].travelDistance + distancia + self.n_serviceTime[node]))
-            return False
+        #if self.n_twMin[node] > (self.solution.rutas[-1].travelDistance + distancia + self.n_serviceTime[node]):# el tiempo de ruta se reinicia con cada ruta. hay que hacer que se tenga un tiempo global y que sea eso lo que se comprueba
+        #    print("MIN: {} - {}".format(self.n_twMin[node], self.solution.rutas[-1].travelDistance + distancia + self.n_serviceTime[node]))
+        #    return False
 
-        if self.n_twMax[node] < (self.solution.rutas[-1].travelDistance + distancia + self.n_serviceTime[node]):
-            print("MAX: {} - {}".format(self.n_twMax[node], self.solution.rutas[-1].travelDistance + distancia + self.n_serviceTime[node]))
-            return False
+        #if self.n_twMax[node] < (self.solution.rutas[-1].travelDistance + distancia + self.n_serviceTime[node]):
+        #    print("MAX: {} - {}".format(self.n_twMax[node], self.solution.rutas[-1].travelDistance + distancia + self.n_serviceTime[node]))
+        #    return False
 
         return True
     
 
-    def getClosestNodes(self):
+    def getClosestNodes(self, lastNode):
         # Obtener la información del nodo en la posición 0 (depot)
         depot_info = self.nodeInfo.loc[0]
 
@@ -253,20 +255,27 @@ class VRPEnv(gym.Env):
             (self.nodeInfo.index != 0)
         ]
 
-        # Obtener los índices de los nodos no visitados
+        # Obtener índices nodos no visitados
         unvisited_indices = unvisited_nodes.index
 
-        # Filtrar las distancias para considerar solo nodos no visitados
+        # Obtener distancias de nodos no visitados
         filtered_distances = distances[unvisited_indices]
 
-        # Ordenar los índices de los nodos no visitados por distancia
-        closest_indices = unvisited_indices[np.argsort(filtered_distances)[:4]]
+        if len(unvisited_indices) < lastNode:
+            # Obtener info nodos no visitados
+            closest_indices = unvisited_indices[np.argsort(filtered_distances)[:self.n_visible_nodes -1]]
+            closest_nodes_info = self.nodeInfo.loc[closest_indices]
 
-        # Obtener la información de los nodos más cercanos
-        closest_nodes_info = self.nodeInfo.loc[closest_indices]
+            # Obtener distancias nodos no visitados más cercanos
+            closest_distances = filtered_distances[np.argsort(filtered_distances)[:self.n_visible_nodes - 1]]
 
-        # Obtener las distancias correspondientes a los nodos más cercanos
-        closest_distances = filtered_distances[np.argsort(filtered_distances)[:4]]
+        else:
+            # Obtener info nodos no visitados
+            closest_indices = unvisited_indices[np.argsort(filtered_distances)[lastNode-self.n_visible_nodes:lastNode - 1]]
+            closest_nodes_info = self.nodeInfo.loc[closest_indices]
+
+            # Obtener distancias nodos no visitados más cercanos
+            closest_distances = filtered_distances[np.argsort(filtered_distances)[lastNode-self.n_visible_nodes:lastNode - 1]]
 
         # Crear el diccionario con la información del depot y los nodos más cercanos
         result = {}
@@ -277,14 +286,14 @@ class VRPEnv(gym.Env):
                 values = [int(depot_info[column])] + [int(x) for x in closest_nodes_info[column].tolist()]
 
             # Rellenar con copias del depot si hay menos de 4 nodos no visitados
-            while len(values) < 5:
+            while len(values) < self.n_visible_nodes:
                 values.append(depot_info[column] if column in ['coordenadas_X', 'coordenadas_Y'] else int(depot_info[column]))
 
             result[column] = np.array(values)
 
         # Añadir las distancias al diccionario result
         distances = [0] + closest_distances.tolist()
-        while len(distances) < 5:
+        while len(distances) < self.n_visible_nodes:
             distances.append(0)  # La distancia al depot es 0
         result['distances'] = np.array(distances)
 
