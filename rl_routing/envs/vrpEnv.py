@@ -269,6 +269,7 @@ class VRPEnv(gym.Env):
             # Obtener distancias nodos no visitados más cercanos
             closest_distances = filtered_distances[np.argsort(filtered_distances)[:self.n_visible_nodes - 1]]
 
+
         else:
             # Obtener info nodos no visitados
             closest_indices = unvisited_indices[np.argsort(filtered_distances)[lastNode-self.n_visible_nodes:lastNode - 1]]
