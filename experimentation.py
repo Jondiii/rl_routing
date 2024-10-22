@@ -1,7 +1,7 @@
 import subprocess
 import pandas as pd
 
-df_Experimentos = pd.read_csv('results_infiniteActions.csv', sep=';')
+df_Experimentos = pd.read_csv('results_5Actions.csv', sep=';')
 listaExperimentos = list(df_Experimentos['run_name'])
 
 for experimento in listaExperimentos:
@@ -10,7 +10,7 @@ for experimento in listaExperimentos:
         'python', 
         'main.py', 
         '--run_name', experimento, 
-        '--dir_data', 'data/solomon_dataset/C1', #si no encuentra el path en local poner \\ en vez de /
+        '--dir_data', 'data/solomon_dataset/C1',  # si no encuentra el path en local probar con \\
         '--file_nodes', 'C101', 
         '--file_vehicles', 'vehicles/c1_vehicles',
         '--iterations', '50',

@@ -18,7 +18,7 @@ Que un entorno pase el checker no quiere decir que esté libre de errores.
 # Se crea un entorno de prueba.
 #env = gym.make('rl_routing:VRPEnv-v0', nVehiculos = 5, nNodos = 20, sameMaxNodeVehicles=True)
 
-env = VRPEnv(nVehiculos = 5, nNodos = 20, sameMaxNodeVehicles=True)
+env = gym.make('rl_routing:VRPEnv-v0', dataPath = 'data', max_vehicles = 10, run_name='lala', render_mode=None)
 
 # Se comprueba que el entorno sea consistente.
 sb3_check_env(env)

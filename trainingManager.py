@@ -55,6 +55,7 @@ class TrainingManager:
         else:
             raise ModuleNotFoundError("Reiforcement Learning algorithm not found")
 
+
         start_time = time.time()
 
         for _ in range(1, int(self.iterations)+1):
@@ -63,9 +64,12 @@ class TrainingManager:
 
         print("--- %s minutos ---" % round((time.time() - start_time)/60, 2))
 
-        self.saveMetrics(self.dir_log+'/'+self.run_name+'_0', 'results_infiniteActions.csv', round((time.time() - start_time)/60, 2), ['rollout/ep_len_mean', 'rollout/ep_rew_mean'])
+        # Descomentar para guardar estos valores en un fichero
+        #self.saveMetrics(self.dir_log+'/'+self.run_name+'_0', 'results_5Actions.csv', round((time.time() - start_time)/60, 2), ['rollout/ep_len_mean', 'rollout/ep_rew_mean'])
 
         self.env.close()
+
+
 
 
     def generateRoutes(self,
@@ -124,31 +128,25 @@ class TrainingManager:
     def saveMetrics(self, logdir, filePath, time, tags: list):
         event_acc = EventAccumulator(logdir)
         event_acc.Reload()  
-
+ 
         metrics = {tag: [] for tag in tags}
         steps = []
 
+        # Iterar sobre los eventos y almacenar las métricas
+        for tag in tags:
+            events = event_acc.Scalars(tag)
+            for event in events:
+                metrics[tag].append(event.value)
+                steps.append(event.step)
+
+
         df = pd.read_csv(filePath, sep=';')
 
-        try:
-            for tag in tags:
-                events = event_acc.Scalars(tag)
-                for event in events:
-                    metrics[tag].append(event.value)
-                    steps.append(event.step)
+        df.loc[df['run_name'] == self.run_name, 'mean_ep_length'] = metrics['rollout/ep_len_mean'][-1]
+        df.loc[df['run_name'] == self.run_name, 'mean_reward'] = metrics['rollout/ep_rew_mean'][-1]
+        df.loc[df['run_name'] == self.run_name, 'training_time'] = round(time,3)
 
-            df.loc[df['run_name'] == self.run_name, 'mean_ep_length'] = metrics['rollout/ep_len_mean'][-1]
-            df.loc[df['run_name'] == self.run_name, 'mean_reward'] = metrics['rollout/ep_rew_mean'][-1]
-            df.loc[df['run_name'] == self.run_name, 'training_time'] = "--- %s minutos ---" %time
-
-            df.to_csv(filePath, index=False, sep=';')
-
-        except Exception as e:
-            df.loc[df['run_name'] == self.run_name, 'mean_ep_length'] = -999999999
-            df.loc[df['run_name'] == self.run_name, 'mean_reward'] = -999999999
-
-            df.to_csv(filePath, index=False, sep=';')
-
+        df.to_csv(filePath, index=False, sep=';')
 
 
     """
