@@ -7,6 +7,7 @@ from utils.dataGenerator import DataGenerator
 from utils.dataReader import DataReader
 import pandas as pd
 import matplotlib.pyplot as plt
+from random import sample
 import copy
 import os
 from datetime import date
@@ -40,7 +41,7 @@ class VRPEnv(gym.Env):
     
     def __init__(self, dataPath = None, max_vehicles = None, nodeFile = 'nodes', vehicleFile = 'vehicles', maxSteps = np.nan,
                 seed = None, singlePlot = False, run_name = None, graphSavePath = None, render_mode = None,
-                n_visible_nodes = 5):
+                n_visible_nodes = 5, n_random_nodes = 0):
 
         super(VRPEnv, self).__init__()
 
@@ -49,7 +50,7 @@ class VRPEnv(gym.Env):
             self.seed = seed
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
-        assert n_visible_nodes >= 3
+        assert n_visible_nodes >= 1
 
         self.render_mode = render_mode
 
@@ -60,6 +61,7 @@ class VRPEnv(gym.Env):
         self.run_name = run_name
         self.graphSavePath = graphSavePath
         self.n_visible_nodes = n_visible_nodes # Contando el depot pero no las 2 acciones extra
+        self.n_random_nodes = n_random_nodes # Cantidad de nodos random a añadir al espacio de acciones
 
         self.isDoneFunction = self.isDone
 
@@ -260,23 +262,29 @@ class VRPEnv(gym.Env):
 
         # Obtener distancias de nodos no visitados
         filtered_distances = distances[unvisited_indices]
+        filtered_distances_indexes = np.argsort(filtered_distances)
 
         if len(unvisited_indices) < lastNode:
-            # Obtener info nodos no visitados
-            closest_indices = unvisited_indices[np.argsort(filtered_distances)[:self.n_visible_nodes -1]]
-            closest_nodes_info = self.nodeInfo.loc[closest_indices]
+            closest_distances_indexes = filtered_distances_indexes[:self.n_visible_nodes -1]
 
-            # Obtener distancias nodos no visitados más cercanos
-            closest_distances = filtered_distances[np.argsort(filtered_distances)[:self.n_visible_nodes - 1]]
+            closest_indices = unvisited_indices[closest_distances_indexes]
+            #TODO hay que aclarar este lio de los índices y todo eso. Faltan añadir las distancias random a closest_distances
+            num_random_nodes_to_add = min(self.n_random_nodes, len(filtered_distances_indexes[self.n_visible_nodes:]))
+            if num_random_nodes_to_add != 0:
+                closest_indices.append(sample(filtered_distances_indexes[self.n_visible_nodes:]), num_random_nodes_to_add)
+
+            # Obtener distancias e info nodos no visitados más cercanos
+            closest_nodes_info = self.nodeInfo.loc[closest_indices]
+            closest_distances = filtered_distances[closest_distances_indexes]
 
 
         else:
-            # Obtener info nodos no visitados
-            closest_indices = unvisited_indices[np.argsort(filtered_distances)[lastNode-self.n_visible_nodes:lastNode - 1]]
+            closest_distances_indexes = filtered_distances_indexes[lastNode-self.n_visible_nodes:lastNode - 1]
+            closest_indices = unvisited_indices[closest_distances_indexes]
             closest_nodes_info = self.nodeInfo.loc[closest_indices]
 
             # Obtener distancias nodos no visitados más cercanos
-            closest_distances = filtered_distances[np.argsort(filtered_distances)[lastNode-self.n_visible_nodes:lastNode - 1]]
+            closest_distances = filtered_distances[closest_distances_indexes]
 
         # Crear el diccionario con la información del depot y los nodos más cercanos
         result = {}
@@ -287,14 +295,14 @@ class VRPEnv(gym.Env):
                 values = [int(depot_info[column])] + [int(x) for x in closest_nodes_info[column].tolist()]
 
             # Rellenar con copias del depot si hay menos de 4 nodos no visitados
-            while len(values) < self.n_visible_nodes:
+            while len(values) < (self.n_visible_nodes + self.n_random_nodes):
                 values.append(depot_info[column] if column in ['coordenadas_X', 'coordenadas_Y'] else int(depot_info[column]))
 
             result[column] = np.array(values)
 
         # Añadir las distancias al diccionario result
         distances = [0] + closest_distances.tolist()
-        while len(distances) < self.n_visible_nodes:
+        while len(distances) < (self.n_visible_nodes + self.n_random_nodes):
             distances.append(0)  # La distancia al depot es 0
         result['distances'] = np.array(distances)
 
