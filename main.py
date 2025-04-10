@@ -22,6 +22,7 @@ parser.add_argument("--algo", help = "Algorithm to be used", default='PPO')
 parser.add_argument("--render_mode", help = "Human, optional", default=None)
 parser.add_argument("--max_vehicles", help = "Maximum number of vehicles", default=None)
 parser.add_argument("--name_model", help = "Name of the model", default=None)
+parser.add_argument("--size_action_space", help = "Size of the action space", default=5)
 
 # Read arguments from command line
 args = parser.parse_args()
@@ -44,7 +45,8 @@ if args.mode == 'new_training':
                     iterations = args.iterations,
                     timesteps = args.timesteps,
                     render_mode = args.render_mode,
-                    max_vehicles = args.max_vehicles
+                    max_vehicles = args.max_vehicles,
+                    size_action_space= args.size_action_space,
                 )
 
 

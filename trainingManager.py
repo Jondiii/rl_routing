@@ -30,18 +30,19 @@ class TrainingManager:
                     timesteps,
                     render_mode,
                     max_vehicles,
+                    size_action_space,
                     ):
         
         self.iterations = int(iterations)
         self.timesteps = int(timesteps)
-        
+
         self.run_name = self.run_name# + '_' + algorithm
 
         if nodeFile:
             if vehicleFile: 
-                self.env = gym.make('rl_routing:VRPEnv-v0', dataPath = dataPath, nodeFile = nodeFile, vehicleFile = vehicleFile, run_name=self.run_name, render_mode=render_mode)
+                self.env = gym.make('rl_routing:VRPEnv-v0', dataPath = dataPath, nodeFile = nodeFile, vehicleFile = vehicleFile, run_name=self.run_name, render_mode=render_mode, n_visible_nodes=int(size_action_space))
         else:
-            self.env = gym.make('rl_routing:VRPEnv-v0', dataPath = dataPath, max_vehicles = max_vehicles, run_name=self.run_name, render_mode=render_mode)
+            self.env = gym.make('rl_routing:VRPEnv-v0', dataPath = dataPath, max_vehicles = max_vehicles, run_name=self.run_name, render_mode=render_mode, n_visible_nodes=int(size_action_space))
 
         if algorithm == 'PPO':
             self.model = PPO("MultiInputPolicy", self.env, verbose=1, tensorboard_log=self.dir_log)
@@ -81,9 +82,10 @@ class TrainingManager:
                        episodes,
                        max_vehicles,
                        render_mode,
-                       name_model
+                       name_model,
+                       size_action_space,
                        ):
-        
+
         if name_model:
             model_path = f"{dir_model}/{name_model}"
         else:
@@ -92,9 +94,9 @@ class TrainingManager:
 
         if nodeFile:
             if vehicleFile:
-                self.env = gym.make('rl_routing:VRPEnv-v0', dataPath = dataPath, nodeFile = nodeFile, vehicleFile = vehicleFile, run_name=self.run_name, render_mode=render_mode)
+                self.env = gym.make('rl_routing:VRPEnv-v0', dataPath = dataPath, nodeFile = nodeFile, vehicleFile = vehicleFile, run_name=self.run_name, render_mode=render_mode, n_visible_nodes=int(size_action_space))
         else:
-            self.env = gym.make('rl_routing:VRPEnv-v0', dataPath = dataPath, max_vehicles = max_vehicles, run_name=self.run_name, render_mode=render_mode)
+            self.env = gym.make('rl_routing:VRPEnv-v0', dataPath = dataPath, max_vehicles = max_vehicles, run_name=self.run_name, render_mode=render_mode, n_visible_nodes=int(size_action_space))
 
         if algorithm == 'PPO':
             self.model = PPO.load(model_path, self.env)
