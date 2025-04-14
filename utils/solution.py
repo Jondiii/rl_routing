@@ -128,18 +128,23 @@ class Solution:
             f.write("\n\nNúmero de vehíclos utilizados: {}".format(len(self.rutas)))
             f.write("\n")
 
-            travelDistanceTotal = 0
+            travelDistanceTotal = self.getTotalDistance()
 
             for ruta in self.rutas:
-                travelDistance = ruta.travelDistance
-                f.write("\n"+str(ruta.visitOrder) + " - distance: " + str(round(travelDistance, 4)))
-                travelDistanceTotal += travelDistance
+                f.write("\n"+str(ruta.visitOrder) + " - distance: " + str(round(ruta.travelDistance, 2)))
 
 
-            f.write("\n\nDistancia total: " + str(round(travelDistanceTotal, 4)))
+            f.write("\n\nDistancia total: " + str(travelDistanceTotal))
 
             f.close()
 
+    def getTotalDistance(self):
+        travelDistanceTotal = 0.0
+
+        for ruta in self.rutas:
+            travelDistanceTotal += ruta.travelDistance
+
+        return round(travelDistanceTotal, 2)
 
     # TODO / WIP. La idea de esto es que una ventana vaya mostrando las rutas según estas se van creando. Es decir, que primero se muestre
     # el depot, luego en otro frame se pinte el primer nodo a visitar, luego el segundo, etc.
