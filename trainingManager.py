@@ -1,5 +1,7 @@
+from stable_baselines3.common.callbacks import EvalCallback, StopTrainingOnNoModelImprovement
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from stable_baselines3 import PPO, A2C, DQN
+from saveBestSolutionCallback import SaveBestSolutionCallback
 
 import gymnasium as gym
 import pandas as pd
@@ -9,16 +11,23 @@ import time
 
 class TrainingManager:
     
-    def __init__(self, run_name = "run_name", dir_model = "models", dir_log = "logs"):
+    def __init__(self, run_name, dir_model, dir_log, save_logs, save_model, save_last_solution):
+        
         self.run_name = run_name
         self.dir_model = os.path.join(self.run_name, dir_model)
         self.dir_log = os.path.join(self.run_name, dir_log)
 
-        if not os.path.exists(self.dir_model):
-            os.makedirs(self.dir_model)
+        self.save_logs = True if save_logs == 'yes' else False
+        self.save_model = True if save_model == 'yes' else False
+        self.save_last_solution = True if save_last_solution == 'yes' else False
 
-        if not os.path.exists(self.dir_log):
-            os.makedirs(self.dir_log)
+        if self.save_model:
+            if not os.path.exists(self.dir_model):
+                os.makedirs(self.dir_model)
+
+        if self.save_logs:
+            if not os.path.exists(self.dir_log):
+                os.makedirs(self.dir_log)
 
 
     def newTraining(self, 
@@ -30,38 +39,57 @@ class TrainingManager:
                     timesteps,
                     render_mode,
                     max_vehicles,
-                    size_action_space,
+                    action_space_size,
+                    verbose,
                     ):
         
         self.iterations = int(iterations)
         self.timesteps = int(timesteps)
 
-        self.run_name = self.run_name# + '_' + algorithm
+        self.run_name = self.run_name
 
         if nodeFile:
             if vehicleFile: 
-                self.env = gym.make('rl_routing:VRPEnv-v0', dataPath = dataPath, nodeFile = nodeFile, vehicleFile = vehicleFile, run_name=self.run_name, render_mode=render_mode, n_visible_nodes=int(size_action_space))
+                self.env = gym.make('rl_routing:VRPEnv-v0',
+                                    dataPath = dataPath,
+                                    nodeFile = nodeFile,
+                                    vehicleFile = vehicleFile,
+                                    run_name=self.run_name,
+                                    render_mode=render_mode,
+                                    action_space_size=int(action_space_size),
+                                    save_last_solution=self.save_last_solution)
         else:
-            self.env = gym.make('rl_routing:VRPEnv-v0', dataPath = dataPath, max_vehicles = max_vehicles, run_name=self.run_name, render_mode=render_mode, n_visible_nodes=int(size_action_space))
+            self.env = gym.make('rl_routing:VRPEnv-v0', dataPath = dataPath, max_vehicles = max_vehicles, run_name=self.run_name, render_mode=render_mode, action_space_size=int(action_space_size))
 
         if algorithm == 'PPO':
-            self.model = PPO("MultiInputPolicy", self.env, verbose=1, tensorboard_log=self.dir_log)
+            self.model = PPO("MultiInputPolicy", self.env, verbose=verbose, tensorboard_log=self.dir_log if self.save_logs else None)
 
         elif algorithm == 'DQN':
-            self.model = DQN("MultiInputPolicy", self.env, verbose=1, tensorboard_log=self.dir_log)
+            self.model = DQN("MultiInputPolicy", self.env, verbose=verbose, tensorboard_log=self.dir_log if self.save_logs else None)
         
         elif algorithm == 'A2C':
-            self.model = A2C("MultiInputPolicy", self.env, verbose=1, tensorboard_log=self.dir_log)
+            self.model = A2C("MultiInputPolicy", self.env, verbose=verbose, tensorboard_log=self.dir_log if self.save_logs else None)
         
         else:
             raise ModuleNotFoundError("Reiforcement Learning algorithm not found")
 
 
+        #stop_train_callback = StopTrainingOnNoModelImprovement(max_no_improvement_evals=5, min_evals=5, verbose=verbose)
+        #eval_callback = EvalCallback(self.env, eval_freq=1000, callback_after_eval=stop_train_callback, verbose=verbose)
+        save_best_solution_callback = SaveBestSolutionCallback(env = self.env, verbose=verbose)
+
         start_time = time.time()
 
-        for _ in range(1, int(self.iterations)+1):
-            self.model.learn(total_timesteps = self.timesteps, reset_num_timesteps = False, tb_log_name = self.run_name)
-            self.model.save(f"{self.dir_model}/{self.run_name}")
+        if self.save_model:
+            for _ in range(1, int(self.iterations)+1):
+                #self.model.learn(total_timesteps = self.timesteps, reset_num_timesteps = False, tb_log_name = self.run_name, callback = [eval_callback,save_best_solution_callback])
+                self.model.learn(total_timesteps = self.timesteps, reset_num_timesteps = False, tb_log_name = self.run_name, callback = save_best_solution_callback)
+                self.model.save(f"{self.dir_model}/{self.run_name}")
+
+        else:
+            for _ in range(1, int(self.iterations)+1):
+                #self.model.learn(total_timesteps = self.timesteps, reset_num_timesteps = False, tb_log_name = self.run_name, callback = [eval_callback,save_best_solution_callback])
+                self.model.learn(total_timesteps = self.timesteps, reset_num_timesteps = False, tb_log_name = self.run_name, callback = save_best_solution_callback)
 
         print("--- %s minutos ---" % round((time.time() - start_time)/60, 2))
 

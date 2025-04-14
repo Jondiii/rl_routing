@@ -17,12 +17,16 @@ parser.add_argument("--iterations", help = "Number of iterations to run the trai
 parser.add_argument("--timesteps", help = "Number of timesteps to run in each iteration.", default=20480)
 parser.add_argument("--file_nodes", help = "File with node information", default=None)
 parser.add_argument("--file_vehicles", help = "File with vehicle information", default=None)
-parser.add_argument("--mode", help = "new_training or generate_Routes", default='new_training')
+parser.add_argument("--mode", help = "new_training or generate_routes", default='new_training')
 parser.add_argument("--algo", help = "Algorithm to be used", default='PPO')
 parser.add_argument("--render_mode", help = "Human, optional", default=None)
 parser.add_argument("--max_vehicles", help = "Maximum number of vehicles", default=None)
 parser.add_argument("--name_model", help = "Name of the model", default=None)
-parser.add_argument("--size_action_space", help = "Size of the action space", default=5)
+parser.add_argument("--action_space_size", help = "Size of the action space", default=5)
+parser.add_argument("--verbose", help = "0 for no output, 1 for info messages, 2 for debug messages", default=0)
+parser.add_argument("--save_model", help = "'yes' to save model to dir_model. Otherwise, it is not saved", default="yes")
+parser.add_argument("--save_logs", help = "'yes' to save logs to dir_log. Otherwise, it is not saved", default="yes")
+parser.add_argument("--save_last_solution", help = "'yes' to save the last solution. Otherwise, it is not saved", default="yes")
 
 # Read arguments from command line
 args = parser.parse_args()
@@ -31,7 +35,13 @@ if args.dir_data is None:
     if (args.file_nodes is None) & (args.file_vehicles is None):
         raise ValueError("Node and vehicle information missing, please specify the data path with --dir_data or the file names with --file_nodes and --file_vehicles")
 
-trainingManager = TrainingManager(run_name = args.run_name)
+trainingManager = TrainingManager(run_name = args.run_name,
+                                  dir_log= args.dir_log,
+                                  dir_model = args.dir_model,
+                                  save_logs = args.save_logs,
+                                  save_model = args.save_model,
+                                  save_last_solution = args.save_last_solution,
+                                  )
 
 
 if args.mode == 'new_training':
@@ -46,11 +56,12 @@ if args.mode == 'new_training':
                     timesteps = args.timesteps,
                     render_mode = args.render_mode,
                     max_vehicles = args.max_vehicles,
-                    size_action_space= args.size_action_space,
+                    action_space_size= args.action_space_size,
+                    verbose= args.verbose,
                 )
 
 
-elif args.mode == 'generate_Routes':
+elif args.mode == 'generate_routes':
     #python main.py --run_name prueba --dir_data data --dir_model prueba\models\ --iterations 1 --mode generate_Routes
 
     trainingManager.generateRoutes(
