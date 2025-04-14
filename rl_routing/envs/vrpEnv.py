@@ -43,7 +43,7 @@ class VRPEnv(gym.Env):
     
     def __init__(self, dataPath = None, max_vehicles = None, nodeFile = 'nodes', vehicleFile = 'vehicles', maxSteps = np.nan,
                 seed = None, singlePlot = False, run_name = None, graphSavePath = None, render_mode = None,
-                action_space_size = 5, save_last_solution = True):
+                action_space_size = 5, save_last_solution = True, nodeLimit = None):
 
         super(VRPEnv, self).__init__()
 
@@ -67,7 +67,7 @@ class VRPEnv(gym.Env):
 
         self.isDoneFunction = self.isDone
 
-        self.readEnvFromFile(dataPath, nodeFile, vehicleFile)
+        self.readEnvFromFile(dataPath, nodeFile, vehicleFile, nodeLimit=nodeLimit)
 
         # Cálculo de matrices de distancia
         self.createMatrixes()
@@ -84,8 +84,8 @@ class VRPEnv(gym.Env):
 
 
     # Método que creará un entorno a partir de lo que se haya almacenado en los ficheros.
-    def readEnvFromFile(self, dataPath, nodeFile, vehicleFile):
-        self.dataReader  = DataReader(dataPath, nodeFile, vehicleFile)
+    def readEnvFromFile(self, dataPath, nodeFile, vehicleFile, nodeLimit = None):
+        self.dataReader  = DataReader(dataPath, nodeFile, vehicleFile, nodeLimit=nodeLimit)
 
         self.nodeInfo = pd.DataFrame(self.dataReader.loadNodeData())
         self.nodeInfo['is_visited'] = 0

@@ -13,6 +13,7 @@ parser.add_argument("--run_name", help = "Name of the training run. If loading a
 parser.add_argument("--dir_model", help = "Directory for the models", default="models")
 parser.add_argument("--dir_log", help = "Directory for the logs", default="logs")
 parser.add_argument("--dir_data", help = "Data directory")
+parser.add_argument("--dir_experiments", help = "Directory for the experiments", default="experiments")
 parser.add_argument("--iterations", help = "Number of iterations to run the training for. A iteration is completed every n_timesteps.", default=10)
 parser.add_argument("--timesteps", help = "Number of timesteps to run in each iteration.", default=20480)
 parser.add_argument("--file_nodes", help = "File with node information", default=None)
@@ -27,6 +28,7 @@ parser.add_argument("--verbose", help = "0 for no output, 1 for info messages, 2
 parser.add_argument("--save_model", help = "'yes' to save model to dir_model. Otherwise, it is not saved", default="yes")
 parser.add_argument("--save_logs", help = "'yes' to save logs to dir_log. Otherwise, it is not saved", default="yes")
 parser.add_argument("--save_last_solution", help = "'yes' to save the last solution. Otherwise, it is not saved", default="yes")
+parser.add_argument("--node_limit", help = "Maximum of nodes to read from file, excluding the depot", default=None)
 
 # Read arguments from command line
 args = parser.parse_args()
@@ -38,6 +40,7 @@ if args.dir_data is None:
 trainingManager = TrainingManager(run_name = args.run_name,
                                   dir_log= args.dir_log,
                                   dir_model = args.dir_model,
+                                  dir_experiments = args.dir_experiments,
                                   save_logs = args.save_logs,
                                   save_model = args.save_model,
                                   save_last_solution = args.save_last_solution,
@@ -58,6 +61,7 @@ if args.mode == 'new_training':
                     max_vehicles = args.max_vehicles,
                     action_space_size= args.action_space_size,
                     verbose= args.verbose,
+                    nodeLimit=args.node_limit,
                 )
 
 

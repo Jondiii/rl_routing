@@ -21,7 +21,8 @@ class DataReader:
                  dataPath,
                  nodeFile="nodes",
                  vehicleFile="vehicles",
-                 fileFormat = ".csv"
+                 fileFormat = ".csv",
+                 nodeLimit = None,
                  ):
         
         # Comprobamos si el directorio especificado en 'dataPath' existe
@@ -34,7 +35,10 @@ class DataReader:
 
         # Leer la información de nodos y vehículos
         if fileFormat == ".csv":
-            self.nodeInfo = pd.read_csv(self.nodePath, index_col=0)
+            if nodeLimit is not None:
+                self.nodeInfo = pd.read_csv(self.nodePath, index_col=0, nrows=nodeLimit+1)
+            else:
+                self.nodeInfo = pd.read_csv(self.nodePath, index_col=0)
             self.vehicleInfo = pd.read_csv(self.vehiclePath, index_col=0)
 
         # Se usa para los benchmarks        
