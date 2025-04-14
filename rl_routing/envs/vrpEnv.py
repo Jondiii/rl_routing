@@ -38,10 +38,12 @@ class VRPEnv(gym.Env):
     v_load = None
     v_maxCapacity = None
 
+    terminated = False
+    truncated = False
     
     def __init__(self, dataPath = None, max_vehicles = None, nodeFile = 'nodes', vehicleFile = 'vehicles', maxSteps = np.nan,
                 seed = None, singlePlot = False, run_name = None, graphSavePath = None, render_mode = None,
-                action_space_size = 5):
+                action_space_size = 5, save_last_solution = True):
 
         super(VRPEnv, self).__init__()
 
@@ -50,7 +52,7 @@ class VRPEnv(gym.Env):
             self.seed = seed
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
-        assert action_space_size >= 1
+        assert action_space_size >= 2 #lo menos 2 nodos que si no no sale del depot!
 
         self.render_mode = render_mode
 
@@ -60,7 +62,8 @@ class VRPEnv(gym.Env):
         self.currEpisodeSteps = 0
         self.run_name = run_name
         self.graphSavePath = graphSavePath
-        self.action_space_size = action_space_size # Contando el depot pero no las 2 acciones extra
+        self.save_last_solution = save_last_solution
+        self.action_space_size = action_space_size 
 
         self.isDoneFunction = self.isDone
 
@@ -108,13 +111,16 @@ class VRPEnv(gym.Env):
 
     # Método que creará el espacio de acciones y el de observaciones.
     def createSpaces(self):
-        self.action_space = Discrete(self.action_space_size) # Nodos (sumando depot) + 2 acciones extra
+        self.action_space = Discrete(self.action_space_size) # Nodos (sumando depot) 
 
         self.observation_space = Dict({
             "v_curr_position" : Discrete(self.nNodos), # Se almacena la posición actual
             "v_load" : Discrete(self.v_maxCapacity + 1), # SOLO se pueden usar enteros
+            "v_totalDistance" : Box(low = 0, high = float('inf'), shape = (1,), dtype=np.float64), # Distancia total recorrida por el vehículo. Da warning porque los box tienen que ser np.Array, pero si lo cambio saltan otros errores que de momento no quiero arreglar.
             "n_demands" : MultiDiscrete(np.zeros(shape=self.action_space_size) + self.n_maxNodeCapacity+1, dtype=np.int64),
             "n_distances" : Box(low = 0, high = float('inf'), shape = (self.action_space_size,), dtype=np.float64),
+            "n_twMin" : Box(low = 0, high = float('inf'), shape = (self.action_space_size,), dtype=np.float64),
+            "n_twMax" : Box(low = 0, high = float('inf'), shape = (self.action_space_size,), dtype=np.float64),
         })
 
     # Método encargado de ejecutar las acciones seleccionadas por el agente.
@@ -136,6 +142,9 @@ class VRPEnv(gym.Env):
         
         self.v_posicionActual = int(node)
 
+        timeToMinTimeWindows =  1 if self.solution.rutas[-1].travelDistance >= self.n_twMin[action] else self.n_twMin[action] - self.solution.rutas[-1].travelDistance
+        timeToMaxTimeWindows = 1 if self.solution.rutas[-1].travelDistance <= self.n_twMax[action] else self.solution.rutas[-1].travelDistance - self.n_twMax[action]
+
         if node == 0:
             self.v_load = self.v_maxCapacity
             self.solution.nuevaRuta()
@@ -144,11 +153,13 @@ class VRPEnv(gym.Env):
 
         self.n_demands = np.array(self.closestNodes['demandas'], dtype=np.int64)
         self.n_distances = np.array(self.closestNodes['distances'], dtype=np.float64)
+        self.n_twMin = np.array(self.closestNodes['minTW'], dtype=np.float64) #TODO
+        self.n_twMax = np.array(self.closestNodes['maxTW'], dtype=np.float64) #TODO
 
-        truncated = self.isTruncated()
-        terminated = self.isDoneFunction()
+        self.truncated = self.isTruncated()
+        self.terminated = self.isDoneFunction()
 
-        return self._get_obs(), self.getReward(distancia, node, terminated, truncated), terminated, truncated, self._get_info()
+        return self._get_obs(), self.getReward(distancia = distancia,node = node, terminated = self.terminated, truncated = self.truncated, timeToMinTimeWindows=timeToMinTimeWindows, timeToMaxTimeWindows=timeToMaxTimeWindows), self.terminated, self.truncated, self._get_info()
 
 
     # Método para resetear el entorno. Se hace al principio del entrenamiento y tras cada episodio.
@@ -167,9 +178,12 @@ class VRPEnv(gym.Env):
 
         self.closestNodes = self.getClosestNodes(self.action_space_size) # Todo se tiene que pillar de aquí.
 
+        #TODO guardar la mejor solución, comparar si la actual es mejor que la que está guardada en un fichero.
+
         self.n_demands = np.array(self.closestNodes['demandas'], dtype=np.int64)
         self.n_distances = np.array(self.closestNodes['distances'], dtype=np.float64)
-
+        self.n_twMin = np.array(self.closestNodes['minTW'], dtype=np.float64) #TODO
+        self.n_twMax = np.array(self.closestNodes['maxTW'], dtype=np.float64) #TODO
 
         # Creamos un conjunto de rutas nuevo
         self.solution = Solution(self.nNodos,  self.n_coordenadas)
@@ -182,8 +196,11 @@ class VRPEnv(gym.Env):
         obs = dict()
         obs["v_curr_position"] = self.v_posicionActual
         obs["v_load"] = self.v_load
+        obs["v_totalDistance"] = self.solution.rutas[-1].travelDistance
         obs["n_demands"] = self.n_demands 
         obs["n_distances"] = self.n_distances
+        obs["n_twMin"] = self.n_twMin #TODO
+        obs["n_twMax"] = self.n_twMax #TODO
 
         return obs
 
@@ -317,8 +334,8 @@ class VRPEnv(gym.Env):
 
         self.nodeInfo.loc[node, 'is_visited'] = 1
         
-        self.solution.visitEdge(self.v_posicionActual, node, distancia, self.n_serviceTime[node])
-
+        #self.solution.visitEdge(self.v_posicionActual, node, distancia, self.n_serviceTime[node])
+        self.solution.visitEdge(self.v_posicionActual, node, distancia, serviceTime=0)
 
 
 
@@ -426,29 +443,33 @@ class VRPEnv(gym.Env):
     
         
     # Método que calcula la recompensa a dar al agente.
-    def getReward(self, distancia, node, terminated, truncated):
+    def getReward(self, distancia, node, terminated, truncated, timeToMinTimeWindows=1, timeToMaxTimeWindows=1):
         if truncated:
             return -100
         
+        penalty_minTW = max(np.log(round(1/timeToMinTimeWindows,2)), -1)
+        penalty_maxTW = max(np.log(round(1/timeToMaxTimeWindows,2)), -1)
+
         if terminated:
             reward = self.getReward(distancia, node, False, False)
 
             nodesNotVisited = sum(self.nodeInfo['is_visited'] == 0)
 
-            return reward  - nodesNotVisited * 10
+            return reward  - nodesNotVisited * 10  + penalty_minTW + penalty_maxTW
 
         if distancia == 0:
             return -1
+
 
         # Cuando el vehículo termina su ruta recibe una recompensa inversamente proporcional a lo lleno que vaya el vehículo,
         # a más llenado más recompensa. Por defecto v_loads está a 100 (capacidad máxima), y se le va restando según se recogen pedidos.
         if node % self.nNodos == 0:
             if self.v_load != 0:
-                return round(1/abs(self.v_load), 2) 
-            return 1
+                return round(1/abs(self.v_load), 2) + penalty_minTW + penalty_maxTW
+            return 1 + penalty_minTW + penalty_maxTW
 
         # La recompensa será inversamente proporcional a la distancia recorrida, a mayor distancia, menor recompensa
-        return round(1/abs(distancia), 2)
+        return round(1/abs(distancia), 2) + penalty_minTW + penalty_maxTW
 
 
 
@@ -538,10 +559,11 @@ class VRPEnv(gym.Env):
     def close(self):
         super().close()
         
-        if self.graphSavePath:
-            self.generateReport(self.graphSavePath)
-        else:
-            self.generateReport(self.run_name)
+        if self.save_last_solution:
+            if self.graphSavePath:
+                self.generateReport(self.graphSavePath)
+            else:
+                self.generateReport(self.run_name)
 
 
     # Guarda el conjunto actual de grafos, independientemente de si están completos o no
@@ -549,7 +571,6 @@ class VRPEnv(gym.Env):
         if self.grafoCompletado == None:
             print("No se han podido generar rutas.")
             return
-
 
         # Llama a un método de guardado o a otro dependiendo de si se quieren todas las rutas en un mismo plot o no
         if self.singlePlot:
