@@ -31,8 +31,6 @@ class SaveBestSolutionCallback(BaseCallback):
         self.env = env
 
         self.experiments_dir = experiments_dir
-        if not os.path.exists(self.experiments_dir):
-            os.makedirs(self.experiments_dir)
         
         self.run_name = self.env.get_wrapper_attr('run_name')
         with open(os.path.join(self.experiments_dir, "{}.txt".format(self.run_name)), "w") as f:

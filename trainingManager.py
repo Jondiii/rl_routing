@@ -11,15 +11,17 @@ import time
 
 class TrainingManager:
     
-    def __init__(self, run_name, dir_model, dir_log, save_logs, save_model, save_last_solution):
+    def __init__(self, run_name, dir_model, dir_log, dir_experiments, save_logs, save_model, save_last_solution):
         
         self.run_name = run_name
         self.dir_model = os.path.join(self.run_name, dir_model)
         self.dir_log = os.path.join(self.run_name, dir_log)
+        self.dir_experiments = dir_experiments
 
         self.save_logs = True if save_logs == 'yes' else False
         self.save_model = True if save_model == 'yes' else False
         self.save_last_solution = True if save_last_solution == 'yes' else False
+
 
         if self.save_model:
             if not os.path.exists(self.dir_model):
@@ -41,12 +43,15 @@ class TrainingManager:
                     max_vehicles,
                     action_space_size,
                     verbose,
+                    nodeLimit,
                     ):
         
         self.iterations = int(iterations)
         self.timesteps = int(timesteps)
 
         self.run_name = self.run_name
+
+        nodeLimit = int(nodeLimit) if nodeLimit else None
 
         if nodeFile:
             if vehicleFile: 
@@ -57,7 +62,9 @@ class TrainingManager:
                                     run_name=self.run_name,
                                     render_mode=render_mode,
                                     action_space_size=int(action_space_size),
-                                    save_last_solution=self.save_last_solution)
+                                    save_last_solution=self.save_last_solution,
+                                    nodeLimit=nodeLimit,
+                                    )
         else:
             self.env = gym.make('rl_routing:VRPEnv-v0', dataPath = dataPath, max_vehicles = max_vehicles, run_name=self.run_name, render_mode=render_mode, action_space_size=int(action_space_size))
 
@@ -76,7 +83,7 @@ class TrainingManager:
 
         #stop_train_callback = StopTrainingOnNoModelImprovement(max_no_improvement_evals=5, min_evals=5, verbose=verbose)
         #eval_callback = EvalCallback(self.env, eval_freq=1000, callback_after_eval=stop_train_callback, verbose=verbose)
-        save_best_solution_callback = SaveBestSolutionCallback(env = self.env, verbose=verbose)
+        save_best_solution_callback = SaveBestSolutionCallback(env = self.env, verbose=verbose, experiments_dir = self.dir_experiments)
 
         start_time = time.time()
 
@@ -97,6 +104,7 @@ class TrainingManager:
         #self.saveMetrics(self.dir_log+'/'+self.run_name+'_0', 'results_5Actions.csv', round((time.time() - start_time)/60, 2), ['rollout/ep_len_mean', 'rollout/ep_rew_mean'])
 
         self.env.close()
+
 
 
 
