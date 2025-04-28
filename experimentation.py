@@ -1,6 +1,7 @@
 import concurrent.futures
 import subprocess
 import pandas as pd
+import numpy as np
 import os
 
 
@@ -10,6 +11,7 @@ experiments_dir = 'experiments'
 experimentationResultsFile = 'experimentationResults.csv'
 
 df_experiments = pd.read_csv(experimentationResultsFile, sep=',')
+df_experiments['Distance'].replace('', np.nan)
 
 
 def runExperiment(experiment):
@@ -19,13 +21,15 @@ def runExperiment(experiment):
         timeWindows = True if experiment['Time Windows'] == 'TW' else False
         maxNodes = experiment['No. Nodes']
 
-        if maxNodes < actionSpaceSize:
-            return
-
         if timeWindows:
             nodeFile = 'C101'
+            return #cambiado porque no se hicieron los experimentos sin TW
         else:
             nodeFile = 'C101-NOTW'
+
+
+        if maxNodes < actionSpaceSize:
+            return
 
         command = [
             'python', 
