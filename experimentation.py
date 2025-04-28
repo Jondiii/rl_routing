@@ -7,7 +7,7 @@ import os
 
 
 experiments_dir = 'experiments'
-experimentationResultsFile = 'experimentationResultsOnly5.csv'
+experimentationResultsFile = 'experimentationResults.csv'
 
 df_experiments = pd.read_csv(experimentationResultsFile, sep=',')
 
@@ -35,7 +35,7 @@ def runExperiment(experiment):
             '--file_nodes', nodeFile, 
             '--file_vehicles', 'vehicles/c1_vehicles',
             '--iterations', '5',#5
-            '--timesteps', '40960',#102400
+            '--timesteps', '40960',#40960
             '--save_model', 'no',
             '--save_logs', 'no',
             '--save_last_solution', 'no',
