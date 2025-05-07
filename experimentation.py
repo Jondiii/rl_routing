@@ -11,10 +11,14 @@ experiments_dir = 'experiments'
 experimentationResultsFile = 'experimentationResults.csv'
 
 df_experiments = pd.read_csv(experimentationResultsFile, sep=',')
-df_experiments['Distance'].replace('', np.nan)
+#df_experiments['Distance'].replace('', np.nan)
 
 
 def runExperiment(experiment):
+        if experiment['Distance'] != '':
+             # Return si el experimento ya ha sido ejecutado
+             return
+        
         experimentName = experiment['ID']
         actionSpaceSize = experiment['Action Space Size']
         algorithm = experiment['Algorithm']
@@ -30,6 +34,7 @@ def runExperiment(experiment):
 
         if maxNodes < actionSpaceSize:
             return
+        
 
         command = [
             'python', 
