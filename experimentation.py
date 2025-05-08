@@ -6,16 +6,15 @@ import os
 
 
 
-
 experiments_dir = 'experiments'
 experimentationResultsFile = 'experimentationResults.csv'
 
 df_experiments = pd.read_csv(experimentationResultsFile, sep=',')
-#df_experiments['Distance'].replace('', np.nan)
 
 
 def runExperiment(experiment):
-        if experiment['Distance'] != '':
+        
+        if not np.isnan(experiment['Distance']):
              # Return si el experimento ya ha sido ejecutado
              return
         
@@ -27,7 +26,7 @@ def runExperiment(experiment):
 
         if timeWindows:
             nodeFile = 'C101'
-            return #cambiado porque no se hicieron los experimentos sin TW
+
         else:
             nodeFile = 'C101-NOTW'
 
@@ -65,6 +64,9 @@ def update_csv(df, experiments_dir, experimentationResultsFile):
     for idx, row in df.iterrows():
         experimentName = row['ID']
         file_path = os.path.join(experiments_dir, f"{experimentName}.txt")
+
+        if not np.isnan(df.at[idx, 'Distance']):
+            continue
 
         if os.path.exists(file_path):
             with open(file_path, 'r') as f:
